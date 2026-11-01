@@ -172,15 +172,18 @@ function stepReveal(){
   const a=state.anim; if(!a){clearInterval(revealTimer);revealTimer=null;return;}
   // Scan speeds up if transcription is arriving faster than we can type.
   a.reveal+=2+state.pending.length*3;
-  let needFull=false;
+  let needUpdate=false;
   for(const sp of a.spans){
     if(sp.seg.kind!=="plain" && !sp.act && a.reveal>=sp.end){
       sp.act=true;                       // scan just finished this keyword -> flag it
+      // fill this keyword's matrix cell (and its correlated pair) from the snapshot,
+      // so its connector points at a filled box the moment the scan reaches it
+      const canon=sp.seg.canonical,st=a.state;
+      for(let r=0;r<6;r++){ if(st.rows[r][0]===canon){ state.rows[r][0]=st.rows[r][0]; state.rows[r][1]=st.rows[r][1]; } }
+      needUpdate=true;
       if(sp.seg.kind==="kw_lock"){
-        state.rows[3][0]=sp.seg.canonical;              // fill the target cell...
-        state.alert=a.alert||{code:sp.seg.canonical,detail:"Target asset relocation detected in live intercept.",confidence:0.9,window:"72:00:00"};
-        state.alertOpen=true;                           // ...pop the threat...
-        needFull=true;                                  // ...and draw the arrow to the box
+        state.alert=a.alert||{code:canon,detail:"Target asset relocation detected in live intercept.",confidence:0.9,window:"72:00:00"};
+        state.alertOpen=true;                           // locked keyword also pops the threat
       }
     }
   }
@@ -195,7 +198,7 @@ function stepReveal(){
     startReveal();                                       // type the next queued line
     return;
   }
-  if(needFull){updateIntercept();drawLink();}
+  if(needUpdate){updateIntercept();drawLink();}
   else renderTranscript();
 }
 function renderTranscript(){
@@ -204,20 +207,27 @@ function renderTranscript(){
   tp.innerHTML=transcriptInner();
   tp.scrollTop=tp.scrollHeight;
 }
-// The arrow layer is a fixed, full-viewport SVG, so marker/cell client rects map
-// straight to its coordinate space (no container-offset math -> no misplaced arrow).
+// Draw a connector from EACH flagged keyword to its matrix cell. The layer is a fixed,
+// full-viewport SVG, so marker/cell client rects map straight to its coordinate space.
 function drawLink(){
   requestAnimationFrame(()=>{
-    const marker=document.getElementById("fowl-marker");
-    const cell=document.getElementById("cell-3-0");
     const svg=document.getElementById("link-layer");
-    const ln=document.getElementById("tactical-link");
-    if(!marker||!cell||!svg||!ln){ if(svg) svg.style.display="none"; return; }
-    const s=marker.getBoundingClientRect(),c=cell.getBoundingClientRect();
-    state.link={x1:s.right+2,y1:s.top+s.height/2,x2:c.left-2,y2:c.top+c.height/2};
+    const g=document.getElementById("link-lines");
+    if(!svg||!g){return;}
+    const conns=[];
+    for(let r=0;r<6;r++){
+      const val=state.rows[r][0];
+      if(!val) continue;
+      const m=document.getElementById(kwSlug(val));   // keyword in transcript
+      const cell=document.getElementById(`cell-${r}-0`);
+      if(!m||!cell) continue;
+      const s=m.getBoundingClientRect(),c=cell.getBoundingClientRect();
+      conns.push({x1:s.right+2,y1:s.top+s.height/2,x2:c.left-2,y2:c.top+c.height/2,lock:(r===3)});
+    }
+    if(!conns.length){ svg.style.display="none"; state.link=null; return; }
+    g.innerHTML=conns.map(c=>`<line x1="${c.x1}" y1="${c.y1}" x2="${c.x2}" y2="${c.y2}" stroke="${c.lock?'var(--fit-green)':'var(--fit-sage)'}" stroke-width="${c.lock?1.8:1.2}" stroke-dasharray="5,4" marker-end="url(#va-arrow)" style="animation:fit-dash 1s linear infinite;opacity:${c.lock?0.95:0.55}"></line>`).join("");
     svg.style.display="block";
-    ln.setAttribute("x1",state.link.x1);ln.setAttribute("y1",state.link.y1);
-    ln.setAttribute("x2",state.link.x2);ln.setAttribute("y2",state.link.y2);
+    state.link=true;
   });
 }
 // Keep the arrow anchored when the transcript scrolls or the window resizes.
@@ -361,24 +371,27 @@ function standbyScreen(){
 }
 
 /* --- streaming transcript renderers --- */
-function segSpan(s,revealed,mb){
+// Each flagged keyword's FIRST occurrence carries id="kw-<slug>" so a connector can be
+// drawn from it to its correlation-matrix cell. kwset dedupes to one marker per entity.
+function kwSlug(c){return "kw-"+String(c||"").replace(/[^a-z0-9]+/gi,"_").toLowerCase();}
+function segSpan(s,revealed,kwset){
   if(s.kind==="plain") return `<span>${esc(s.text)}</span>`;
   if(!revealed) return `<span style="color:var(--fit-text-dim)">${esc(s.text)}</span>`;
-  if(s.kind==="kw_lock"){
-    let id=""; if(mb.allow){id=' id="fowl-marker"';mb.allow=false;}
+  const slug=kwSlug(s.canonical);
+  let id=""; if(s.canonical && !kwset.has(slug)){ kwset.add(slug); id=` id="${slug}"`; }
+  if(s.kind==="kw_lock")
     return `<span${id} style="background:var(--fit-green-solid);color:var(--fit-ink-on-green);padding:1px 5px;font-weight:700;box-shadow:0 0 8px var(--fit-green-glow)">${esc(s.text)}</span>`;
-  }
-  return `<span style="color:var(--fit-green);background:rgba(56,239,125,.08);padding:1px 4px;font-weight:700">${esc(s.text)}</span>`;
+  return `<span${id} style="color:var(--fit-green);background:rgba(56,239,125,.08);padding:1px 4px;font-weight:700">${esc(s.text)}</span>`;
 }
 function lineDiv(ts,inner){
   return `<div style="font-size:16px;line-height:1.45;letter-spacing:.03em;color:var(--fit-text-dim)"><span style="color:var(--fit-text-faint);font-size:11px;margin-right:10px">${esc(ts||"")}</span>${inner}</div>`;
 }
-function animLineHtml(markAnim){
-  const a=state.anim,mb={allow:!!markAnim};let out="";
+function animLineHtml(kwset){
+  const a=state.anim;let out="";
   for(let i=0;i<a.spans.length;i++){
     const sp=a.spans[i],s=sp.seg;
     if(a.reveal<=sp.start) break;
-    if(a.reveal>=sp.end){ out+=segSpan(s,true,mb); }
+    if(a.reveal>=sp.end){ out+=segSpan(s,true,kwset); }
     else { out+=`<span style="color:var(--fit-text-dim)">${esc(s.text.slice(0,a.reveal-sp.start))}</span>`; break; }
   }
   const cursor=a.reveal<a.len?`<span style="color:var(--fit-sage);animation:fit-blink 1s step-end infinite">▌</span>`:"";
@@ -389,17 +402,10 @@ function transcriptInner(){
   if(!state.started){
     return header+`<div style="margin:auto;text-align:center;padding:60px 0"><div style="font-size:10px;letter-spacing:.28em;color:var(--fit-sage);margin-bottom:18px">AWAITING SIGNAL</div><button onclick="startIntercept()" style="font-size:13px;letter-spacing:.14em;color:var(--fit-ink-on-green);background:var(--fit-green);border:none;padding:11px 22px;cursor:pointer;box-shadow:0 0 10px var(--fit-green-glow)">▶ INITIATE INTERCEPT</button></div>`;
   }
-  // Only ONE element may carry id="fowl-marker": prefer the scanning line's revealed lock,
-  // else the most recent completed lock.
-  const animLock=state.anim&&state.anim.spans.some(sp=>sp.seg.kind==="kw_lock"&&state.anim.reveal>=sp.end);
-  let markLineIdx=-1;
-  if(!animLock){ for(let i=state.lines.length-1;i>=0;i--){ if(state.lines[i].segs.some(s=>s.kind==="kw_lock")){markLineIdx=i;break;} } }
+  const kwset=new Set();
   let html=header;
-  state.lines.forEach((ln,i)=>{
-    const mb={allow:i===markLineIdx};
-    html+=lineDiv(ln.ts,ln.segs.map(s=>segSpan(s,true,mb)).join(""));
-  });
-  if(state.anim) html+=animLineHtml(animLock);
+  state.lines.forEach(ln=>{ html+=lineDiv(ln.ts,ln.segs.map(s=>segSpan(s,true,kwset)).join("")); });
+  if(state.anim) html+=animLineHtml(kwset);
   if(state.streaming&&!state.anim) html+=`<div style="color:var(--fit-sage);font-size:16px;letter-spacing:.03em">▌<span style="opacity:.6"> listening…</span></div>`;
   return html;
 }
@@ -582,7 +588,7 @@ function mainContent(){
 }
 const LINK_SVG=`<svg id="link-layer" style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:40;display:none">
   <defs><marker id="va-arrow" markerWidth="9" markerHeight="7" refX="7.5" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="var(--fit-sage)"></polygon></marker></defs>
-  <line id="tactical-link" x1="0" y1="0" x2="0" y2="0" stroke="var(--fit-sage)" stroke-width="1.6" stroke-dasharray="5,4" marker-end="url(#va-arrow)" style="animation:fit-dash 1s linear infinite"></line>
+  <g id="link-lines"></g>
 </svg>`;
 function render(){
   if(state.screen==="login"){root.innerHTML=loginScreen();return;}
