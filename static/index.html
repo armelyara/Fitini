@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fitini — Voice Analyzer</title>
+<script src="/static/vendor/leader-line.min.js"></script>
 <style>
 :root{
   --fit-bg:#161819;--fit-surface:#1b1e1f;--fit-surface-2:#202425;--fit-surface-3:#0b0d0d;--fit-titlebar:#23282a;
@@ -51,7 +52,7 @@ const state={
   screen:"login", device:"desktop",
   started:false, done:false, streaming:false,
   lines:[], pending:[], anim:null, rows:Array.from({length:6},()=>["",""]),
-  subject:"SEARCHING...", locations:[], idLocked:false, locationLocked:false, link:null,
+  subject:"SEARCHING...", locations:[], idLocked:false, locationLocked:false, link:null, activeCanon:null,
   alertOpen:false, alert:null,
   sessions:[], query:"",
   report:null, reportId:null,
@@ -60,7 +61,7 @@ const state={
   settings:{vad:true,diarize:true,redact:false,autolock:true,language:"en",model_label:"faster-whisper · base.en",vad_threshold:0.62},
   clock:"--:--:-- UTC",
 };
-let ws=null, revealTimer=null;
+let ws=null, revealTimer=null, leader=null;
 const root=document.getElementById("root");
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
@@ -142,10 +143,11 @@ function startIntercept(){
 function resetIntercept(){
   if(ws){try{ws.close();}catch(e){}ws=null;}
   if(revealTimer){clearInterval(revealTimer);revealTimer=null;}
+  removeLeader();
   state.started=false;state.done=false;state.streaming=false;
   state.lines=[];state.pending=[];state.anim=null;
   state.rows=Array.from({length:6},()=>["",""]);state.subject="SEARCHING...";
-  state.locations=[];state.idLocked=false;state.locationLocked=false;state.link=null;
+  state.locations=[];state.idLocked=false;state.locationLocked=false;state.link=null;state.activeCanon=null;
   state.alertOpen=false;state.alert=null;
 }
 // An utterance arrives -> queue it; the scan types it out word by word.
@@ -180,6 +182,7 @@ function stepReveal(){
       // so its connector points at a filled box the moment the scan reaches it
       const canon=sp.seg.canonical,st=a.state;
       for(let r=0;r<6;r++){ if(st.rows[r][0]===canon){ state.rows[r][0]=st.rows[r][0]; state.rows[r][1]=st.rows[r][1]; } }
+      state.activeCanon=canon;          // the word just flagged -> the one the arrow points to
       needUpdate=true;
       if(sp.seg.kind==="kw_lock"){
         state.alert=a.alert||{code:canon,detail:"Target asset relocation detected in live intercept.",confidence:0.9,window:"72:00:00"};
@@ -207,32 +210,34 @@ function renderTranscript(){
   tp.innerHTML=transcriptInner();
   tp.scrollTop=tp.scrollHeight;
 }
-// Draw a connector from EACH flagged keyword to its matrix cell. The layer is a fixed,
-// full-viewport SVG, so marker/cell client rects map straight to its coordinate space.
+// ONE LeaderLine connector: from the most-recent occurrence of the just-flagged word
+// (state.activeCanon) to its matrix cell. Recreated each update because the transcript
+// DOM is rebuilt (the span reference would otherwise go stale).
+function removeLeader(){ if(leader){ try{leader.remove();}catch(e){} leader=null; } }
 function drawLink(){
   requestAnimationFrame(()=>{
-    const svg=document.getElementById("link-layer");
-    const g=document.getElementById("link-lines");
-    if(!svg||!g){return;}
-    const conns=[];
-    for(let r=0;r<6;r++){
-      const val=state.rows[r][0];
-      if(!val) continue;
-      const m=document.getElementById(kwSlug(val));   // keyword in transcript
-      const cell=document.getElementById(`cell-${r}-0`);
-      if(!m||!cell) continue;
-      const s=m.getBoundingClientRect(),c=cell.getBoundingClientRect();
-      conns.push({x1:s.right+2,y1:s.top+s.height/2,x2:c.left-2,y2:c.top+c.height/2,lock:(r===3)});
-    }
-    if(!conns.length){ svg.style.display="none"; state.link=null; return; }
-    g.innerHTML=conns.map(c=>`<line x1="${c.x1}" y1="${c.y1}" x2="${c.x2}" y2="${c.y2}" stroke="${c.lock?'var(--fit-green)':'var(--fit-sage)'}" stroke-width="${c.lock?1.8:1.2}" stroke-dasharray="5,4" marker-end="url(#va-arrow)" style="animation:fit-dash 1s linear infinite;opacity:${c.lock?0.95:0.55}"></line>`).join("");
-    svg.style.display="block";
-    state.link=true;
+    removeLeader();
+    if(typeof LeaderLine==="undefined"){ state.link=null; return; }
+    const canon=state.activeCanon;
+    let row=-1;
+    if(canon){ for(let r=0;r<6;r++){ if(state.rows[r][0]===canon){ row=r; break; } } }
+    const cell=row>=0?document.getElementById(`cell-${row}-0`):null;
+    const spans=canon?document.querySelectorAll(`#transcript [data-canon="${canon.replace(/"/g,"")}"]`):[];
+    const m=spans.length?spans[spans.length-1]:null;
+    if(!canon||!cell||!m){ state.link=null; return; }
+    try{
+      leader=new LeaderLine(m, cell, {
+        color:"rgba(120,168,144,0.9)", size:1.7, path:"straight",
+        startSocket:"right", endSocket:"left", endPlug:"arrow3", endPlugSize:1.5,
+        dash:{animation:true}
+      });
+      state.link=true;
+    }catch(e){ state.link=null; }
   });
 }
-// Keep the arrow anchored when the transcript scrolls or the window resizes.
-window.addEventListener("resize",()=>{ if(state.screen==="intercept"&&state.link) drawLink(); });
-document.addEventListener("scroll",()=>{ if(state.screen==="intercept"&&state.link) drawLink(); },true);
+// Keep the line anchored when the transcript scrolls or the window resizes.
+window.addEventListener("resize",()=>{ if(leader) try{leader.position();}catch(e){} });
+document.addEventListener("scroll",()=>{ if(leader) try{leader.position();}catch(e){} },true);
 
 /* ---------------- alert / threat ---------------- */
 function simThreat(){
@@ -371,27 +376,25 @@ function standbyScreen(){
 }
 
 /* --- streaming transcript renderers --- */
-// Each flagged keyword's FIRST occurrence carries id="kw-<slug>" so a connector can be
-// drawn from it to its correlation-matrix cell. kwset dedupes to one marker per entity.
-function kwSlug(c){return "kw-"+String(c||"").replace(/[^a-z0-9]+/gi,"_").toLowerCase();}
-function segSpan(s,revealed,kwset){
+// Keyword spans carry data-canon so ONE connector can be drawn from the just-flagged
+// word to its matrix cell (drawLink uses the latest occurrence of state.activeCanon).
+function segSpan(s,revealed){
   if(s.kind==="plain") return `<span>${esc(s.text)}</span>`;
   if(!revealed) return `<span style="color:var(--fit-text-dim)">${esc(s.text)}</span>`;
-  const slug=kwSlug(s.canonical);
-  let id=""; if(s.canonical && !kwset.has(slug)){ kwset.add(slug); id=` id="${slug}"`; }
+  const dc=s.canonical?` data-canon="${esc(s.canonical)}"`:"";
   if(s.kind==="kw_lock")
-    return `<span${id} style="background:var(--fit-green-solid);color:var(--fit-ink-on-green);padding:1px 5px;font-weight:700;box-shadow:0 0 8px var(--fit-green-glow)">${esc(s.text)}</span>`;
-  return `<span${id} style="color:var(--fit-green);background:rgba(56,239,125,.08);padding:1px 4px;font-weight:700">${esc(s.text)}</span>`;
+    return `<span${dc} style="background:var(--fit-green-solid);color:var(--fit-ink-on-green);padding:1px 5px;font-weight:700;box-shadow:0 0 8px var(--fit-green-glow)">${esc(s.text)}</span>`;
+  return `<span${dc} style="color:var(--fit-green);background:rgba(56,239,125,.08);padding:1px 4px;font-weight:700">${esc(s.text)}</span>`;
 }
 function lineDiv(ts,inner){
   return `<div style="font-size:16px;line-height:1.45;letter-spacing:.03em;color:var(--fit-text-dim)"><span style="color:var(--fit-text-faint);font-size:11px;margin-right:10px">${esc(ts||"")}</span>${inner}</div>`;
 }
-function animLineHtml(kwset){
+function animLineHtml(){
   const a=state.anim;let out="";
   for(let i=0;i<a.spans.length;i++){
     const sp=a.spans[i],s=sp.seg;
     if(a.reveal<=sp.start) break;
-    if(a.reveal>=sp.end){ out+=segSpan(s,true,kwset); }
+    if(a.reveal>=sp.end){ out+=segSpan(s,true); }
     else { out+=`<span style="color:var(--fit-text-dim)">${esc(s.text.slice(0,a.reveal-sp.start))}</span>`; break; }
   }
   const cursor=a.reveal<a.len?`<span style="color:var(--fit-sage);animation:fit-blink 1s step-end infinite">▌</span>`:"";
@@ -402,10 +405,9 @@ function transcriptInner(){
   if(!state.started){
     return header+`<div style="margin:auto;text-align:center;padding:60px 0"><div style="font-size:10px;letter-spacing:.28em;color:var(--fit-sage);margin-bottom:18px">AWAITING SIGNAL</div><button onclick="startIntercept()" style="font-size:13px;letter-spacing:.14em;color:var(--fit-ink-on-green);background:var(--fit-green);border:none;padding:11px 22px;cursor:pointer;box-shadow:0 0 10px var(--fit-green-glow)">▶ INITIATE INTERCEPT</button></div>`;
   }
-  const kwset=new Set();
   let html=header;
-  state.lines.forEach(ln=>{ html+=lineDiv(ln.ts,ln.segs.map(s=>segSpan(s,true,kwset)).join("")); });
-  if(state.anim) html+=animLineHtml(kwset);
+  state.lines.forEach(ln=>{ html+=lineDiv(ln.ts,ln.segs.map(s=>segSpan(s,true)).join("")); });
+  if(state.anim) html+=animLineHtml();
   if(state.streaming&&!state.anim) html+=`<div style="color:var(--fit-sage);font-size:16px;letter-spacing:.03em">▌<span style="opacity:.6"> listening…</span></div>`;
   return html;
 }
@@ -586,13 +588,10 @@ function mainContent(){
     default: return standbyScreen();
   }
 }
-const LINK_SVG=`<svg id="link-layer" style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:40;display:none">
-  <defs><marker id="va-arrow" markerWidth="9" markerHeight="7" refX="7.5" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="var(--fit-sage)"></polygon></marker></defs>
-  <g id="link-lines"></g>
-</svg>`;
 function render(){
+  if(state.screen!=="intercept") removeLeader();   // tear down the connector off-screen
   if(state.screen==="login"){root.innerHTML=loginScreen();return;}
-  root.innerHTML=`${LINK_SVG}<div style="display:grid;grid-template-rows:auto 1fr;height:100%">
+  root.innerHTML=`<div style="display:grid;grid-template-rows:auto 1fr;height:100%">
     ${topBar()}
     <div style="display:grid;grid-template-columns:auto 1fr;min-height:0">
       ${navRail()}
