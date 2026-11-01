@@ -50,7 +50,7 @@ const state={
   token:null, operatorId:"OP-7781 // VESPER", loginError:"",
   screen:"login", device:"desktop",
   started:false, done:false, streaming:false,
-  lines:[], rows:Array.from({length:6},()=>["",""]),
+  lines:[], pending:[], anim:null, rows:Array.from({length:6},()=>["",""]),
   subject:"SEARCHING...", locations:[], idLocked:false, locationLocked:false, link:null,
   alertOpen:false, alert:null,
   sessions:[], query:"",
@@ -60,7 +60,7 @@ const state={
   settings:{vad:true,diarize:true,redact:false,autolock:true,language:"en",model_label:"faster-whisper · base.en",vad_threshold:0.62},
   clock:"--:--:-- UTC",
 };
-let ws=null, scrollTopCache=0;
+let ws=null, revealTimer=null;
 const root=document.getElementById("root");
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
@@ -133,27 +133,76 @@ function startIntercept(){
   ws.onmessage=ev=>{
     const msg=JSON.parse(ev.data);
     if(msg.type==="utterance") onUtterance(msg);
-    else if(msg.type==="complete"){state.done=true;state.streaming=false;state.report=msg.report;state.reportId=msg.session_id;render();}
-    else if(msg.type==="error"){state.streaming=false;render();}
+    else if(msg.type==="complete"){state.done=true;state.streaming=false;state.report=msg.report;state.reportId=msg.session_id;if(!state.anim&&state.pending.length===0)render();}
+    else if(msg.type==="error"){state.streaming=false;if(!state.anim)render();}
   };
   ws.onclose=()=>{state.streaming=false;render();};
   ws.onerror=()=>{state.streaming=false;};
 }
 function resetIntercept(){
   if(ws){try{ws.close();}catch(e){}ws=null;}
-  state.started=false;state.done=false;state.streaming=false;state.lines=[];
+  if(revealTimer){clearInterval(revealTimer);revealTimer=null;}
+  state.started=false;state.done=false;state.streaming=false;
+  state.lines=[];state.pending=[];state.anim=null;
   state.rows=Array.from({length:6},()=>["",""]);state.subject="SEARCHING...";
   state.locations=[];state.idLocked=false;state.locationLocked=false;state.link=null;
+  state.alertOpen=false;state.alert=null;
 }
+// An utterance arrives -> queue it; the scan types it out word by word.
 function onUtterance(msg){
-  state.lines.push({ts:msg.ts,segs:msg.segs});
-  const st=msg.state;
-  state.rows=st.rows;state.subject=st.subject;state.idLocked=st.id_locked;
-  state.locations=st.locations;state.locationLocked=st.location_locked;
-  if(msg.alert){state.alert=msg.alert;state.alertOpen=true;}
-  render();
-  const tp=document.getElementById("transcript"); if(tp) tp.scrollTop=tp.scrollHeight;
-  drawLink();
+  state.pending.push(msg);
+  if(!state.anim) startReveal();
+}
+function startReveal(){
+  if(revealTimer){clearInterval(revealTimer);revealTimer=null;}
+  const msg=state.pending.shift();
+  if(!msg){
+    // Nothing left to type; if the session is done, surface the report state.
+    if(state.done) render();
+    return;
+  }
+  // Pre-compute each segment's character span within the line.
+  let off=0;
+  const spans=msg.segs.map(s=>{const o={start:off,end:off+s.text.length,seg:s,act:false};off+=s.text.length;return o;});
+  state.anim={ts:msg.ts,segs:msg.segs,spans,reveal:0,len:off,state:msg.state,alert:msg.alert};
+  renderTranscript();
+  revealTimer=setInterval(stepReveal,28);
+}
+function stepReveal(){
+  const a=state.anim; if(!a){clearInterval(revealTimer);revealTimer=null;return;}
+  // Scan speeds up if transcription is arriving faster than we can type.
+  a.reveal+=2+state.pending.length*3;
+  let needFull=false;
+  for(const sp of a.spans){
+    if(sp.seg.kind!=="plain" && !sp.act && a.reveal>=sp.end){
+      sp.act=true;                       // scan just finished this keyword -> flag it
+      if(sp.seg.kind==="kw_lock"){
+        state.rows[3][0]=sp.seg.canonical;              // fill the target cell...
+        state.alert=a.alert||{code:sp.seg.canonical,detail:"Target asset relocation detected in live intercept.",confidence:0.9,window:"72:00:00"};
+        state.alertOpen=true;                           // ...pop the threat...
+        needFull=true;                                  // ...and draw the arrow to the box
+      }
+    }
+  }
+  if(a.reveal>=a.len){
+    clearInterval(revealTimer);revealTimer=null;
+    state.lines.push({ts:a.ts,segs:a.segs});
+    const st=a.state;                                    // apply this utterance's cumulative state
+    state.rows=st.rows;state.subject=st.subject;state.idLocked=st.id_locked;
+    state.locations=st.locations;state.locationLocked=st.location_locked;
+    state.anim=null;
+    render();drawLink();
+    startReveal();                                       // type the next queued line
+    return;
+  }
+  if(needFull){render();drawLink();}
+  else renderTranscript();
+}
+function renderTranscript(){
+  const tp=document.getElementById("transcript");
+  if(!tp){render();return;}
+  tp.innerHTML=transcriptInner();
+  tp.scrollTop=tp.scrollHeight;
 }
 function drawLink(){
   requestAnimationFrame(()=>{
@@ -308,18 +357,51 @@ function standbyScreen(){
   </div>`;
 }
 
-function interceptScreen(){
-  const linesHtml=state.lines.map(ln=>{
-    let foundLock=false;
-    const segs=ln.segs.map(s=>{
-      if(s.kind==="plain") return `<span>${esc(s.text)}</span>`;
-      if(s.kind==="kw_lock"){const id=!foundLock?' id="fowl-marker"':"";foundLock=true;return `<span${id} style="background:var(--fit-green-solid);color:var(--fit-ink-on-green);padding:1px 5px;font-weight:700;box-shadow:0 0 8px var(--fit-green-glow)">${esc(s.text)}</span>`;}
-      return `<span style="color:var(--fit-green);background:rgba(56,239,125,.08);padding:1px 4px;font-weight:700">${esc(s.text)}</span>`;
-    }).join("");
-    return `<div class="stream" style="font-size:16px;line-height:1.45;letter-spacing:.03em;color:var(--fit-text-dim)"><span style="color:var(--fit-text-faint);font-size:11px;margin-right:10px">${esc(ln.ts||"")}</span>${segs}</div>`;
-  }).join("");
+/* --- streaming transcript renderers --- */
+function segSpan(s,revealed,mb){
+  if(s.kind==="plain") return `<span>${esc(s.text)}</span>`;
+  if(!revealed) return `<span style="color:var(--fit-text-dim)">${esc(s.text)}</span>`;
+  if(s.kind==="kw_lock"){
+    let id=""; if(mb.allow){id=' id="fowl-marker"';mb.allow=false;}
+    return `<span${id} style="background:var(--fit-green-solid);color:var(--fit-ink-on-green);padding:1px 5px;font-weight:700;box-shadow:0 0 8px var(--fit-green-glow)">${esc(s.text)}</span>`;
+  }
+  return `<span style="color:var(--fit-green);background:rgba(56,239,125,.08);padding:1px 4px;font-weight:700">${esc(s.text)}</span>`;
+}
+function lineDiv(ts,inner){
+  return `<div class="stream" style="font-size:16px;line-height:1.45;letter-spacing:.03em;color:var(--fit-text-dim)"><span style="color:var(--fit-text-faint);font-size:11px;margin-right:10px">${esc(ts||"")}</span>${inner}</div>`;
+}
+function animLineHtml(markAnim){
+  const a=state.anim,mb={allow:!!markAnim};let out="";
+  for(let i=0;i<a.spans.length;i++){
+    const sp=a.spans[i],s=sp.seg;
+    if(a.reveal<=sp.start) break;
+    if(a.reveal>=sp.end){ out+=segSpan(s,true,mb); }
+    else { out+=`<span style="color:var(--fit-text-dim)">${esc(s.text.slice(0,a.reveal-sp.start))}</span>`; break; }
+  }
+  const cursor=a.reveal<a.len?`<span style="color:var(--fit-sage);animation:fit-blink 1s step-end infinite">▌</span>`:"";
+  return lineDiv(a.ts,out+cursor);
+}
+function transcriptInner(){
+  const header=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:11px;letter-spacing:.2em;color:var(--fit-sage)">LIVE TRANSCRIPT · CH.07</span><span style="font-size:10px;color:var(--fit-text-faint)">${state.lines.length}${state.anim?"+1":""}</span></div>`;
+  if(!state.started){
+    return header+`<div style="margin:auto;text-align:center;padding:60px 0"><div style="font-size:10px;letter-spacing:.28em;color:var(--fit-sage);margin-bottom:18px">AWAITING SIGNAL</div><button onclick="startIntercept()" style="font-size:13px;letter-spacing:.14em;color:var(--fit-ink-on-green);background:var(--fit-green);border:none;padding:11px 22px;cursor:pointer;box-shadow:0 0 10px var(--fit-green-glow)">▶ INITIATE INTERCEPT</button></div>`;
+  }
+  // Only ONE element may carry id="fowl-marker": prefer the scanning line's revealed lock,
+  // else the most recent completed lock.
+  const animLock=state.anim&&state.anim.spans.some(sp=>sp.seg.kind==="kw_lock"&&state.anim.reveal>=sp.end);
+  let markLineIdx=-1;
+  if(!animLock){ for(let i=state.lines.length-1;i>=0;i--){ if(state.lines[i].segs.some(s=>s.kind==="kw_lock")){markLineIdx=i;break;} } }
+  let html=header;
+  state.lines.forEach((ln,i)=>{
+    const mb={allow:i===markLineIdx};
+    html+=lineDiv(ln.ts,ln.segs.map(s=>segSpan(s,true,mb)).join(""));
+  });
+  if(state.anim) html+=animLineHtml(animLock);
+  if(state.streaming&&!state.anim) html+=`<div style="color:var(--fit-sage);font-size:16px;letter-spacing:.03em">▌<span style="opacity:.6"> listening…</span></div>`;
+  return html;
+}
 
-  const notStarted=!state.started;
+function interceptScreen(){
   const matrix=[];
   for(let r=0;r<6;r++)for(let c=0;c<2;c++){
     const val=state.rows[r][c];const active=(r===3&&c===0)&&!!val;
@@ -338,12 +420,7 @@ function interceptScreen(){
       <line id="tactical-link" x1="0" y1="0" x2="0" y2="0" stroke="var(--fit-sage)" stroke-width="1.5" stroke-dasharray="4,4" marker-end="url(#va-arrow)" style="animation:fit-dash 1s linear infinite"></line>
     </svg>
     <div style="padding:22px 28px;display:grid;grid-template-columns:${dashCols()};gap:0;min-height:100%">
-      <div id="transcript" style="padding-right:28px;border-right:1px solid var(--fit-border);display:flex;flex-direction:column;gap:11px;overflow-y:auto;min-height:0;max-height:calc(100vh - 150px)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:11px;letter-spacing:.2em;color:var(--fit-sage)">LIVE TRANSCRIPT · CH.07</span><span style="font-size:10px;color:var(--fit-text-faint)">${state.lines.length}</span></div>
-        ${notStarted?`<div style="margin:auto;text-align:center;padding:60px 0"><div style="font-size:10px;letter-spacing:.28em;color:var(--fit-sage);margin-bottom:18px">AWAITING SIGNAL</div><button onclick="startIntercept()" style="font-size:13px;letter-spacing:.14em;color:var(--fit-ink-on-green);background:var(--fit-green);border:none;padding:11px 22px;cursor:pointer;box-shadow:0 0 10px var(--fit-green-glow)">▶ INITIATE INTERCEPT</button></div>`:""}
-        ${linesHtml}
-        ${state.streaming?`<div style="color:var(--fit-sage);font-size:16px;letter-spacing:.03em">▌<span style="opacity:.6"> listening…</span></div>`:""}
-      </div>
+      <div id="transcript" style="padding-right:28px;border-right:1px solid var(--fit-border);display:flex;flex-direction:column;gap:11px;overflow-y:auto;min-height:0;max-height:calc(100vh - 150px)">${transcriptInner()}</div>
       <div style="padding-left:24px;display:flex;flex-direction:column;gap:16px;min-height:0">
         <div style="border:1px solid var(--fit-border);background:var(--fit-surface)">${titlebar("Correlation Matrix")}<div style="display:grid;grid-template-columns:1fr 1fr">${matrix.join("")}</div></div>
         <div style="border:1px solid var(--fit-border);background:var(--fit-surface)">${titlebar("Summary")}

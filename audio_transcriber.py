@@ -82,16 +82,48 @@ class AudioStreamTranscriber:
     def _audio_callback(self, indata, frames, time_info, status):  # pragma: no cover
         self.audio_queue.put(indata[:, 0].copy())
 
-    async def _stream_microphone(self) -> AsyncGenerator[Dict[str, str], None]:  # pragma: no cover
+    def _reset_segmenter(self) -> None:
+        self._speech_buffer: list = []
+        self._silence_frames: int = 0
+
+    async def _ingest_chunk(self, chunk, vad_fn, transcribe_fn):
+        """Feed one audio chunk through the VAD-gated segmenter.
+
+        `vad_fn(chunk) -> float` and `transcribe_fn(audio) -> str` are injected so this
+        state machine can be exercised with real models (mic path) or stubs (tests),
+        and both are dispatched OFF the event loop via asyncio.to_thread. Returns a
+        transcribed string when a speech segment completes, else None.
+        """
         import numpy as np  # type: ignore
+
+        # VAD inference OFF the event loop.
+        speech_prob = await asyncio.to_thread(vad_fn, chunk)
+
+        if speech_prob > self.vad_threshold:
+            self._speech_buffer.append(chunk)
+            self._silence_frames = 0
+        elif self._speech_buffer:
+            self._speech_buffer.append(chunk)
+            self._silence_frames += 1
+            if self._silence_frames > self.silence_frames_limit:
+                full_audio = np.concatenate(self._speech_buffer)
+                self._reset_segmenter()
+                # Transcription OFF the event loop.
+                text = await asyncio.to_thread(transcribe_fn, full_audio)
+                return text or None
+        return None
+
+    async def _stream_microphone(self) -> AsyncGenerator[Dict[str, str], None]:  # pragma: no cover
         import sounddevice as sd  # type: ignore
         import torch  # type: ignore
 
         if self.whisper_model is None or self.vad_model is None:
             await asyncio.to_thread(self._load_models)
 
-        speech_buffer = []
-        silence_frames = 0
+        self._reset_segmenter()
+
+        def vad_fn(chunk):
+            return self.vad_model(torch.from_numpy(chunk), self.sample_rate).item()
 
         with sd.InputStream(
             samplerate=self.sample_rate,
@@ -104,27 +136,9 @@ class AudioStreamTranscriber:
                 await asyncio.sleep(0.01)
                 while not self.audio_queue.empty():
                     chunk = self.audio_queue.get_nowait()
-                    tensor_chunk = torch.from_numpy(chunk)
-
-                    # VAD inference OFF the event loop.
-                    speech_prob = await asyncio.to_thread(
-                        lambda: self.vad_model(tensor_chunk, self.sample_rate).item()
-                    )
-
-                    if speech_prob > self.vad_threshold:
-                        speech_buffer.append(chunk)
-                        silence_frames = 0
-                    elif speech_buffer:
-                        speech_buffer.append(chunk)
-                        silence_frames += 1
-
-                        if silence_frames > self.silence_frames_limit:
-                            full_audio = np.concatenate(speech_buffer)
-                            speech_buffer = []
-                            silence_frames = 0
-                            text = await asyncio.to_thread(self._transcribe_array, full_audio)
-                            if text:
-                                yield {"ts": self._now_ts(), "text": text}
+                    text = await self._ingest_chunk(chunk, vad_fn, self._transcribe_array)
+                    if text:
+                        yield {"ts": self._now_ts(), "text": text}
 
     # ------------------------------------------------------------------ #
     def _transcribe_array(self, audio) -> str:  # pragma: no cover
