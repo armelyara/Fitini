@@ -10,10 +10,22 @@ The same engine serves, as profiles: SIGINT / signals intelligence, clinical con
 decision-support, cyber threat intelligence, pharmacovigilance, supply-chain risk, ITSM
 incident grouping, 911 dispatch assist, trading-floor compliance, and e-Discovery.
 
-- **`fitini_core.py`** — the engine (`CorrelationEngine`) + `Timeline`, profile-driven.
-- **`profiles/*.json`** — domain configs (`surveillance`, `healthcare`, `cti`, …).
-- **`demo_domains.py`** — runs the same engine over every profile: `python3 demo_domains.py`
-  (or `python3 demo_domains.py cti healthcare`).
+Fitini targets three domains, each a folder of focused sub-profiles:
+
+```
+profiles/
+  cybersecurity/   cti.json                              # CTI: IOC correlation, attack graph
+  investigation/   sigint.json  ediscovery.json          # lawful intercept · depositions/leaks
+  healthcare/      consultation.json  pharmacovigilance.json
+```
+
+- **`fitini_core.py`** — the engine (`CorrelationEngine`) + `Timeline`. Deterministic
+  lexicon + regex extraction, correlation links, a co-occurrence **relationship graph**,
+  weighted hypothesis scoring + lock, and alert rules (`all_of` combinations, or `on_label`
+  watchlist alerts that fire on any entity of a type — a name, coordinate, code word, CVE…).
+- **`profiles/<domain>/<usecase>.json`** — domain configs; adding a use-case is one file.
+- **`demo_domains.py`** — runs the same engine over every profile:
+  `python3 demo_domains.py` (or filter: `python3 demo_domains.py investigation`).
 
 Extraction is a deterministic lexicon + regex (offline, explainable); GLiNER zero-shot NER
 or an LLM extractor can be layered in later, with the knowledge base staying the source of

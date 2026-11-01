@@ -1,5 +1,6 @@
 {
-  "id": "healthcare",
+  "id": "healthcare/consultation",
+  "domain": "Healthcare",
   "name": "Clinical Consultation · Decision Support",
   "stream": "audio",
   "_disclaimer": "PROTOTYPE / DECISION-SUPPORT DEMO ONLY. Not a medical device, not for diagnostic use or real patient care. Illustrative content, not validated clinical knowledge. A licensed clinician makes every decision.",

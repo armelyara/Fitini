@@ -1,5 +1,6 @@
 {
-  "id": "cti",
+  "id": "cybersecurity/cti",
+  "domain": "Cybersecurity",
   "name": "Cyber Threat Intelligence · Attack Correlation",
   "stream": "text",
   "labels": {

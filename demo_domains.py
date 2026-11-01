@@ -18,7 +18,7 @@ def run_profile(path):
     profile = json.load(open(path, encoding="utf-8"))
     eng = CorrelationEngine(profile)
     print("\n" + "#" * 80)
-    print(f"# PROFILE: {profile['name']}  [{profile['id']}·{profile.get('stream','')}]")
+    print(f"# {profile.get('domain','')} / {profile['name']}  [{profile['id']}·{profile.get('stream','')}]")
     print("#" * 80)
 
     last = None
@@ -36,6 +36,11 @@ def run_profile(path):
             print(f"        next: {r['suggested_questions'][0]['question']}")
         last = r
 
+    if last.get("relationships"):
+        print("\n  ── RELATIONSHIP GRAPH ─────────────────────────────────────────────")
+        for a, b in last["relationships"]:
+            print(f"     {a}  —  {b}")
+
     print("\n  ── CHRONOLOGIE DES FAITS ──────────────────────────────────────────")
     for ev in last["timeline"]:
         m = KIND_MARK.get(ev["kind"], " ")
@@ -48,8 +53,11 @@ def run_profile(path):
 
 def main():
     args = sys.argv[1:]
-    paths = [os.path.join(HERE, "profiles", a if a.endswith(".json") else a + ".json")
-             for a in args] or sorted(glob.glob(os.path.join(HERE, "profiles", "*.json")))
+    all_paths = sorted(glob.glob(os.path.join(HERE, "profiles", "**", "*.json"), recursive=True))
+    if args:
+        paths = [p for p in all_paths if any(a.rstrip(".json") in p for a in args)]
+    else:
+        paths = all_paths
     for p in paths:
         run_profile(p)
 

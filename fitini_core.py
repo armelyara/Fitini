@@ -53,10 +53,16 @@ class CorrelationEngine:
         self.links = profile.get("links", [])
         self.hypotheses = profile.get("hypotheses", [])
         self.alert_rules = profile.get("alert_rules", [])
+        # cooccurrence: {"labels": [...], "relation": "..."} — entities of these labels
+        # seen in the same utterance become relationship edges (who-relates-to-whom graph).
+        self.cooccur = profile.get("cooccurrence")
         self.reset()
 
     def reset(self) -> None:
         self.entities: Dict[str, Dict[str, Any]] = {}     # canonical -> {category,count}
+        self.labels_present: set = set()                   # categories seen (for by-label refs)
+        self.relationships: List[List[str]] = []          # [[a, b], ...] relationship graph
+        self._rel_set: set = set()
         self.locked: Optional[str] = None
         self.leading: Optional[str] = None
         self.line = 0
@@ -75,11 +81,12 @@ class CorrelationEngine:
                               "canonical": lx.get("canonical", lx["pattern"].upper()),
                               "display": text[i:i + len(pat)]})
                 i = lower.find(pat, i + 1)
-        for rx, label, token in self.patterns:
+        for rx, label, _token in self.patterns:
             for m in rx.finditer(text):
+                # regex entities key on the actual value (e.g. "CVE-2023-23397"); the
+                # label (e.g. "CVE") is what hypotheses/alerts match on by presence.
                 spans.append({"start": m.start(), "end": m.end(), "label": label,
-                              # correlation token is stable (e.g. "CVE"); display is the value
-                              "canonical": token or label, "display": m.group(0)})
+                              "canonical": m.group(0), "display": m.group(0)})
         spans.sort(key=lambda s: (s["start"], -(s["end"] - s["start"])))
         chosen, last_end = [], -1
         for s in spans:
@@ -100,6 +107,11 @@ class CorrelationEngine:
             segs.append({"text": text[cursor:], "label": None})
         return segs
 
+    def _present(self, ref: str) -> bool:
+        """A criterion/alert reference is satisfied by a specific entity OR by any
+        entity of that label being present (e.g. 'CVE', 'PHONE')."""
+        return ref in self.entities or ref in self.labels_present
+
     def _score(self) -> List[Dict[str, Any]]:
         out = []
         for h in self.hypotheses:
@@ -107,7 +119,7 @@ class CorrelationEngine:
             matched, present, missing = 0, [], []
             for c in h["criteria"]:
                 e = c["entity"]
-                if e in self.entities:
+                if self._present(e):
                     matched += c["weight"]
                     present.append(e)
                 else:
@@ -129,23 +141,47 @@ class CorrelationEngine:
         spans = self._extract(text)
         segs = self._segs(text, spans)
         new_entities = []
+        here: List[tuple] = []       # (canonical, label, display) present in THIS utterance
+        new_here: List[tuple] = []   # subset newly seen this utterance
 
         for sp in spans:
             canon = sp["canonical"]
+            self.labels_present.add(sp["label"])
             if canon not in self.entities:
                 self.entities[canon] = {"category": sp["label"], "count": 0}
                 self.timeline.add("entity", sp["display"], ts, detail=sp["label"], source=text)
                 new_entities.append(canon)
+                new_here.append((canon, sp["label"], sp["display"]))
             self.entities[canon]["count"] += 1
+            here.append((canon, sp["label"], sp["display"]))
 
         # correlation links -> implied entities / graph edges
         for lk in self.links:
             w, a = lk["when"], lk["add"]
             if w in self.entities and a not in self.entities:
-                self.entities[a] = {"category": lk.get("category", "ENTITY"), "count": 1}
+                cat = lk.get("category", "ENTITY")
+                self.entities[a] = {"category": cat, "count": 1}
+                self.labels_present.add(cat)
                 self.timeline.add("link", f"{w} → {a}", ts,
                                   detail=lk.get("relation", "correlated"), source=text)
                 new_entities.append(a)
+                here.append((a, cat, a))
+                new_here.append((a, cat, a))
+
+        # cooccurrence -> relationship graph (e.g. who-is-mentioned-with-whom)
+        if self.cooccur:
+            labels = set(self.cooccur.get("labels", []))
+            nodes = [c for (c, lab, _d) in here if lab in labels]
+            nodes = list(dict.fromkeys(nodes))
+            for i in range(len(nodes)):
+                for j in range(i + 1, len(nodes)):
+                    key = frozenset((nodes[i], nodes[j]))
+                    if key not in self._rel_set:
+                        self._rel_set.add(key)
+                        self.relationships.append([nodes[i], nodes[j]])
+                        self.timeline.add("link", f"{nodes[i]} — {nodes[j]}", ts,
+                                          detail=self.cooccur.get("relation", "co-mentioned"),
+                                          source=text)
 
         diff = self._score()
         if diff:
@@ -162,11 +198,22 @@ class CorrelationEngine:
 
         alerts = []
         for rule in self.alert_rules:
-            if all(e in self.entities for e in rule["all_of"]) and rule["name"] not in self._alerted:
-                self._alerted.add(rule["name"])
-                self.timeline.add("alert", rule["name"], ts,
-                                  detail=rule.get("message", ""), source=text)
-                alerts.append(rule)
+            if "on_label" in rule:
+                # watchlist: fire the first time each distinct value of this label appears
+                for canon, lab, disp in new_here:
+                    if lab == rule["on_label"]:
+                        key = f"{rule['name']}|{disp}"
+                        if key not in self._alerted:
+                            self._alerted.add(key)
+                            self.timeline.add("alert", f"{rule['name']}: {disp}", ts,
+                                              detail=rule.get("message", ""), source=text)
+                            alerts.append({**rule, "value": disp})
+            elif "all_of" in rule:
+                if all(self._present(e) for e in rule["all_of"]) and rule["name"] not in self._alerted:
+                    self._alerted.add(rule["name"])
+                    self.timeline.add("alert", rule["name"], ts,
+                                      detail=rule.get("message", ""), source=text)
+                    alerts.append(rule)
 
         questions = []
         seen = set()
@@ -188,6 +235,7 @@ class CorrelationEngine:
                 "locked": self.locked,
                 "entities": list(self.entities.keys()),
             },
+            "relationships": [list(r) for r in self.relationships],
             "suggested_questions": questions[:4],
             "alerts": alerts,
             "timeline": self.timeline.export(),
