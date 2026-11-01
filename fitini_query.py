@@ -195,7 +195,7 @@ class AnalystSession:
 
 if __name__ == "__main__":
     import json
-    prof = sys.argv[1] if len(sys.argv) > 1 else "investigation/osint_social"
+    prof = sys.argv[1] if len(sys.argv) > 1 else "investigation/social"
     folder = sys.argv[2] if len(sys.argv) > 2 else "samples/ci_social"
     profile = json.load(open(os.path.join(HERE, "profiles", prof + ".json"), encoding="utf-8"))
     s = AnalystSession(profile).ingest_folder(os.path.join(HERE, folder))

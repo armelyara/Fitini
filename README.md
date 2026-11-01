@@ -6,7 +6,7 @@ how to correlate them, what counts as a "lock," and what raises an alert. Across
 domain the pipeline is the same — **extract → correlate → score → lock → alert** — plus the
 feature they all share: a running, timestamped **timeline (chronologie des faits)**.
 
-The same engine serves, as profiles: SIGINT / signals intelligence, clinical consultation
+The same engine serves, as profiles: lawful intercept, clinical consultation
 decision-support, cyber threat intelligence, pharmacovigilance, supply-chain risk, ITSM
 incident grouping, 911 dispatch assist, trading-floor compliance, and e-Discovery.
 
@@ -15,7 +15,7 @@ Fitini targets three domains, each a folder of focused sub-profiles:
 ```
 profiles/
   cybersecurity/   cti.json                              # CTI: IOC correlation, attack graph
-  investigation/   sigint.json  ediscovery.json          # lawful intercept · depositions/leaks
+  investigation/   intercept.json ediscovery.json          # lawful intercept · depositions/leaks
   healthcare/      consultation.json  pharmacovigilance.json
 ```
 
@@ -40,7 +40,7 @@ Fitini runs the same engine in two modes:
   anomalies, and the handful of **key statements worth reading — each traced to its source**.
 
   ```
-  python3 corpus_analyze.py investigation/osint_social samples/ci_social
+  python3 corpus_analyze.py investigation/social samples/ci_social
   ```
 
   The brief is deterministic and source-linked; it organizes and ranks evidence for a human
@@ -56,14 +56,14 @@ illustrative, not validated domain knowledge; the healthcare profile is a decisi
 
 ---
 
-## Voice Analyzer (the SIGINT reference app)
+## Voice Analyzer (the reference app)
 
 The first profile ships as a full app: a real-time **audio → transcription →
 keyword-correlation** pipeline behind a tactical "FUI" (fictional user interface). Audio is
 transcribed on the fly, keywords are highlighted and correlated into a target/location
 matrix, and the live screen locks a subject and raises threat alerts.
 
-> **Note.** The "SIGINT / OSINT" styling is an aesthetic recreation of a cinematic
+> **Note.** The tactical styling is an aesthetic recreation of a cinematic
 > surveillance screen. The intelligence layer is a small, configurable keyword/rule engine
 > (`config.json`) — not a trained model or a real interception capability. The live-mic mode
 > only transcribes audio you feed it; use it on your own voice / test recordings.

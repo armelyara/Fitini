@@ -1,7 +1,7 @@
 {
-  "id": "investigation/sigint",
+  "id": "investigation/intercept",
   "domain": "Investigation",
-  "name": "SIGINT · Lawful Intercept",
+  "name": "Lawful Intercept",
   "stream": "audio",
   "_note": "For authorized/judicial use only. Illustrative demo content.",
   "labels": {

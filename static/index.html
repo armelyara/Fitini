@@ -28,6 +28,9 @@ input{font-family:var(--mono)}
 @keyframes fit-scan{from{transform:translateY(-100%)}to{transform:translateY(100%)}}
 @keyframes fit-pulse{0%,100%{opacity:.55}50%{opacity:1}}
 @keyframes fit-dash{to{stroke-dashoffset:-16}}
+@keyframes fit-flag-pulse{0%{box-shadow:0 0 2px var(--fit-green-glow)}35%{box-shadow:0 0 18px var(--fit-green-glow)}100%{box-shadow:0 0 8px var(--fit-green-glow)}}
+.kw-flash{animation:fit-flag-pulse .5s ease-out}
+.cell-hot{box-shadow:0 0 14px var(--fit-green-glow)!important;border-color:var(--fit-green)!important;transition:box-shadow .2s,border-color .2s}
 .stream{animation:fit-stream .3s ease}
 </style>
 </head>
@@ -148,7 +151,7 @@ function resetIntercept(){
   state.lines=[];state.pending=[];state.anim=null;
   state.rows=Array.from({length:6},()=>["",""]);state.subject="SEARCHING...";
   state.locations=[];state.idLocked=false;state.locationLocked=false;state.link=null;state.activeCanon=null;
-  state.alertOpen=false;state.alert=null;
+  state.alertOpen=false;state.alert=null;state.flagQueue=[];state.flagBusy=false;
 }
 // An utterance arrives -> queue it; the scan types it out word by word.
 function onUtterance(msg){
@@ -172,37 +175,42 @@ function startReveal(){
 }
 function stepReveal(){
   const a=state.anim; if(!a){clearInterval(revealTimer);revealTimer=null;return;}
-  // Scan speeds up if transcription is arriving faster than we can type.
-  a.reveal+=2+state.pending.length*3;
-  let needUpdate=false;
+  a.reveal+=2+state.pending.length*3;                 // scan speeds up when lines queue up
+  const newFlags=[];
   for(const sp of a.spans){
     if(sp.seg.kind!=="plain" && !sp.act && a.reveal>=sp.end){
-      sp.act=true;                       // scan just finished this keyword -> flag it
-      // fill this keyword's matrix cell (and its correlated pair) from the snapshot,
-      // so its connector points at a filled box the moment the scan reaches it
-      const canon=sp.seg.canonical,st=a.state;
+      sp.act=true;                                     // scan just finished this keyword -> flag it
+      const canon=sp.seg.canonical, st=a.state;
       for(let r=0;r<6;r++){ if(st.rows[r][0]===canon){ state.rows[r][0]=st.rows[r][0]; state.rows[r][1]=st.rows[r][1]; } }
-      state.activeCanon=canon;          // the word just flagged -> the one the arrow points to
-      needUpdate=true;
       if(sp.seg.kind==="kw_lock"){
         state.alert=a.alert||{code:canon,detail:"Target asset relocation detected in live intercept.",confidence:0.9,window:"72:00:00"};
-        state.alertOpen=true;                           // locked keyword also pops the threat
+        state.alertOpen=true;
       }
+      newFlags.push(canon);
     }
   }
-  if(a.reveal>=a.len){
-    clearInterval(revealTimer);revealTimer=null;
-    state.lines.push({ts:a.ts,segs:a.segs});
-    const st=a.state;                                    // apply this utterance's cumulative state
-    state.rows=st.rows;state.subject=st.subject;state.idLocked=st.id_locked;
-    state.locations=st.locations;state.locationLocked=st.location_locked;
-    state.anim=null;
-    updateIntercept();drawLink();
-    startReveal();                                       // type the next queued line
+  const lineDone=a.reveal>=a.len;
+  if(newFlags.length){
+    clearInterval(revealTimer);revealTimer=null;         // pause the scan while flags fire
+    a.pendingFinish=lineDone;
+    updateIntercept();                                   // light the keyword(s) + fill the matrix cells once
+    for(const c of newFlags) state.flagQueue.push(c);
+    pumpFlags();                                         // animate them one at a time
     return;
   }
-  if(needUpdate){updateIntercept();drawLink();}
-  else renderTranscript();
+  if(lineDone){ finishLine(); return; }
+  renderTranscript();
+}
+function finishLine(){
+  const a=state.anim; if(!a) return;
+  if(revealTimer){clearInterval(revealTimer);revealTimer=null;}
+  state.lines.push({ts:a.ts,segs:a.segs});
+  const st=a.state;                                      // apply this utterance's cumulative state
+  state.rows=st.rows;state.subject=st.subject;state.idLocked=st.id_locked;
+  state.locations=st.locations;state.locationLocked=st.location_locked;
+  state.anim=null;
+  updateIntercept();
+  startReveal();                                         // type the next queued line
 }
 function renderTranscript(){
   const tp=document.getElementById("transcript");
@@ -210,29 +218,54 @@ function renderTranscript(){
   tp.innerHTML=transcriptInner();
   tp.scrollTop=tp.scrollHeight;
 }
-// ONE LeaderLine connector: from the most-recent occurrence of the just-flagged word
-// (state.activeCanon) to its matrix cell. Recreated each update because the transcript
-// DOM is rebuilt (the span reference would otherwise go stale).
+/* ----- dynamic flag connector: one arrow at a time -----
+   Each flagged keyword lights up, an arrow is drawn to its matrix cell, held
+   briefly, then faded out before the next flagged word fires. The scan is paused
+   during the sequence so the connector's anchors stay valid. */
+const FLAG_HOLD=600, FLAG_FADE=260;
 function removeLeader(){ if(leader){ try{leader.remove();}catch(e){} leader=null; } }
-function drawLink(){
+function cellForCanon(canon){
+  for(let r=0;r<6;r++){ if(state.rows[r][0]===canon) return document.getElementById(`cell-${r}-0`); }
+  return null;
+}
+// Drain the flag queue sequentially; resume the scan once it is empty.
+function pumpFlags(){
+  if(state.flagBusy) return;
+  if(state.flagQueue.length===0){ afterFlags(); return; }
+  const canon=state.flagQueue.shift();
+  state.flagBusy=true; state.activeCanon=canon;
+  flashArrow(canon,()=>{ state.flagBusy=false; state.activeCanon=null; pumpFlags(); });
+}
+function afterFlags(){
+  const a=state.anim;
+  if(!a){ if(state.done) render(); return; }
+  if(a.pendingFinish){ finishLine(); }
+  else { revealTimer=setInterval(stepReveal,28); }       // keep typing the rest of the line
+}
+// Appear -> hold -> fade for a single flagged keyword.
+function flashArrow(canon,done){
   requestAnimationFrame(()=>{
     removeLeader();
-    if(typeof LeaderLine==="undefined"){ state.link=null; return; }
-    const canon=state.activeCanon;
-    let row=-1;
-    if(canon){ for(let r=0;r<6;r++){ if(state.rows[r][0]===canon){ row=r; break; } } }
-    const cell=row>=0?document.getElementById(`cell-${row}-0`):null;
-    const spans=canon?document.querySelectorAll(`#transcript [data-canon="${canon.replace(/"/g,"")}"]`):[];
+    const cell=cellForCanon(canon);
+    const spans=document.querySelectorAll(`#transcript [data-canon="${canon.replace(/"/g,"")}"]`);
     const m=spans.length?spans[spans.length-1]:null;
-    if(!canon||!cell||!m){ state.link=null; return; }
+    if(m) m.classList.add("kw-flash");
+    if(typeof LeaderLine==="undefined"||!cell||!m){ setTimeout(done,200); return; }
+    cell.classList.add("cell-hot");
     try{
-      leader=new LeaderLine(m, cell, {
-        color:"rgba(120,168,144,0.9)", size:1.7, path:"straight",
-        startSocket:"right", endSocket:"left", endPlug:"arrow3", endPlugSize:1.5,
+      leader=new LeaderLine(m,cell,{
+        color:"rgba(120,168,144,0.95)", size:2, path:"straight",
+        startSocket:"right", endSocket:"left", endPlug:"arrow3", endPlugSize:1.6,
         dash:{animation:true}
       });
+      leader.hide("none");
+      leader.show("draw",{duration:220});
       state.link=true;
-    }catch(e){ state.link=null; }
+    }catch(e){ cell.classList.remove("cell-hot"); setTimeout(done,200); return; }
+    setTimeout(()=>{
+      try{ leader.hide("fade",{duration:FLAG_FADE}); }catch(e){}
+      setTimeout(()=>{ removeLeader(); cell.classList.remove("cell-hot"); state.link=false; done(); }, FLAG_FADE+40);
+    }, FLAG_HOLD);
   });
 }
 // Keep the line anchored when the transcript scrolls or the window resizes.
@@ -295,7 +328,7 @@ const titlebar=t=>`<div style="background:var(--fit-titlebar);padding:7px 12px;f
 /* ---------------- screens ---------------- */
 function loginScreen(){
   return `<div style="position:absolute;inset:0;z-index:50;background:var(--fit-bg);display:grid;grid-template-rows:auto 1fr auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 24px;border-bottom:1px solid var(--fit-border);font-size:10px;letter-spacing:.28em;color:var(--fit-sage)"><span>SIGINT // OSINT — RESTRICTED</span><span>ACCESS TERMINAL · NODE CH.07</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 24px;border-bottom:1px solid var(--fit-border);font-size:10px;letter-spacing:.28em;color:var(--fit-sage)"><span>RESTRICTED — AUTHORIZED USE ONLY</span><span>ACCESS TERMINAL · NODE CH.07</span></div>
     <div style="display:flex;align-items:center;justify-content:center">
       <div style="width:420px;max-width:90vw">
         <div style="font-size:44px;letter-spacing:.42em;color:var(--fit-green);text-shadow:0 0 14px var(--fit-green-glow);font-weight:700">FITINI</div>
@@ -327,7 +360,7 @@ function statusInfo(){
 function topBar(){
   const st=statusInfo();
   return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 20px;border-bottom:1px solid var(--fit-border);background:var(--fit-surface-3)">
-    <div style="display:flex;align-items:center;gap:18px"><span style="font-size:16px;letter-spacing:.34em;color:var(--fit-green);text-shadow:0 0 10px var(--fit-green-glow);font-weight:700">FITINI</span><span style="font-size:10px;letter-spacing:.24em;color:var(--fit-sage)">SIGINT // OSINT — RESTRICTED · CH.07</span></div>
+    <div style="display:flex;align-items:center;gap:18px"><span style="font-size:16px;letter-spacing:.34em;color:var(--fit-green);text-shadow:0 0 10px var(--fit-green-glow);font-weight:700">FITINI</span><span style="font-size:10px;letter-spacing:.24em;color:var(--fit-sage)">RESTRICTED · CH.07</span></div>
     <div style="display:flex;align-items:center;gap:14px">
       <span style="display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.12em;color:${st.c}"><span style="width:8px;height:8px;border-radius:50%;background:${st.c};animation:fit-pulse 1.6s infinite"></span>${st.l}</span>
       <span id="clock" style="font-size:11px;color:var(--fit-text-muted);letter-spacing:.1em">${esc(state.clock)}</span>
@@ -415,7 +448,7 @@ function transcriptInner(){
 function railInner(){
   const matrix=[];
   for(let r=0;r<6;r++)for(let c=0;c<2;c++){
-    const val=state.rows[r][c];const active=(r===3&&c===0)&&!!val;
+    const val=state.rows[r][c];const active=false;
     matrix.push(`<div id="cell-${r}-${c}" style="${cellStyle(active,!!val)}"><span>${esc(val||"—")}</span></div>`);
   }
   const locs=state.locations.map(l=>`<div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:11px;letter-spacing:.1em"><span style="width:7px;height:7px;background:var(--fit-green)"></span><span style="color:var(--fit-green)">${esc(l)}</span><span style="color:var(--fit-text-faint);margin-left:auto">LOCKED</span></div>`).join("");
@@ -598,7 +631,7 @@ function render(){
       <main style="min-height:0;min-width:0;overflow:auto;position:relative">${mainContent()}</main>
     </div>
   </div><div id="modal-root">${alertModal()}</div>`;
-  if(state.screen==="intercept"&&state.link) drawLink();
+  if(leader) removeLeader();   // stale connector after a full re-render
 }
 // Targeted update during streaming — avoids rebuilding topbar/nav (the per-sentence blink).
 function updateIntercept(){

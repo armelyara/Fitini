@@ -18,7 +18,7 @@ separate, optional LLM step that must cite these same sources; it is not invente
 
 Usage:
     python3 corpus_analyze.py <profile> <folder>
-    python3 corpus_analyze.py investigation/osint_social samples/ci_social
+    python3 corpus_analyze.py investigation/social samples/ci_social
 """
 
 import glob

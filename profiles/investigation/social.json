@@ -1,7 +1,7 @@
 {
-  "id": "investigation/osint_social",
+  "id": "investigation/social",
   "domain": "Investigation",
-  "name": "OSINT · Social-Media Investigation",
+  "name": "Social-Media Investigation",
   "stream": "corpus",
   "_note": "Illustrative, fictional demo content. This organizes publicly-sourced evidence for a human investigator/journalist; it does not judge or accuse. Cite sources; verify before acting.",
   "labels": {
