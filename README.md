@@ -24,8 +24,29 @@ profiles/
   weighted hypothesis scoring + lock, and alert rules (`all_of` combinations, or `on_label`
   watchlist alerts that fire on any entity of a type — a name, coordinate, code word, CVE…).
 - **`profiles/<domain>/<usecase>.json`** — domain configs; adding a use-case is one file.
-- **`demo_domains.py`** — runs the same engine over every profile:
+- **`demo_domains.py`** — runs the same engine over every profile's live stream:
   `python3 demo_domains.py` (or filter: `python3 demo_domains.py investigation`).
+- **`corpus_analyze.py`** — batch "give me a folder, tell me what's going on" mode.
+
+## Two modes
+
+Fitini runs the same engine in two modes:
+
+- **Live stream** — one incoming stream (audio→text or text) analysed in real time:
+  highlights, correlation, locks, alerts, timeline (the Voice Analyzer app).
+- **Corpus** — point it at a *folder* of documents (audio is transcribed first) when you
+  can't read it all. It analyses every file and aggregates into one brief: what's going on,
+  hotspot documents to read first, the relationship network, a merged chronology, flags /
+  anomalies, and the handful of **key statements worth reading — each traced to its source**.
+
+  ```
+  python3 corpus_analyze.py investigation/osint_social samples/ci_social
+  ```
+
+  The brief is deterministic and source-linked; it organizes and ranks evidence for a human
+  investigator. The fluent "what happened" narrative is a separate, optional LLM step that
+  must cite these same documents — it is never invented. For cases about real people, the
+  tool surfaces evidence; it does not pass judgment.
 
 Extraction is a deterministic lexicon + regex (offline, explainable); GLiNER zero-shot NER
 or an LLM extractor can be layered in later, with the knowledge base staying the source of

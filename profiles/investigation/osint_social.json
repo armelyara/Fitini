@@ -1,0 +1,65 @@
+{
+  "id": "investigation/osint_social",
+  "domain": "Investigation",
+  "name": "OSINT · Social-Media Investigation",
+  "stream": "corpus",
+  "_note": "Illustrative, fictional demo content. This organizes publicly-sourced evidence for a human investigator/journalist; it does not judge or accuse. Cite sources; verify before acting.",
+  "labels": {
+    "PERSON": "#38ef7d", "HANDLE": "#38ef7d", "ORG": "#78a890", "LOCATION": "#38ef7d",
+    "DATE": "#d8b24a", "HATE": "#e2574f", "LANDGRAB": "#e2574f", "VIOLENCE": "#e2574f", "DISINFO": "#d8b24a"
+  },
+  "patterns": [
+    { "regex": "@[A-Za-z0-9_]+", "label": "HANDLE", "token": "HANDLE" },
+    { "regex": "(?i)\\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\\s+\\d{4}", "label": "DATE", "token": "DATE" },
+    { "regex": "\\b20\\d{2}\\b", "label": "DATE", "token": "DATE" }
+  ],
+  "lexicon": [
+    { "pattern": "not real ivorians", "label": "HATE", "canonical": "SLUR_NOT_REAL" },
+    { "pattern": "fake ivorians", "label": "HATE", "canonical": "SLUR_FAKE" },
+    { "pattern": "go back", "label": "HATE", "canonical": "SLUR_GOBACK" },
+    { "pattern": "took our jobs", "label": "HATE", "canonical": "SLUR_JOBS" },
+    { "pattern": "stole the land", "label": "LANDGRAB", "canonical": "LAND_STOLEN" },
+    { "pattern": "stole their land", "label": "LANDGRAB", "canonical": "LAND_STOLEN" },
+    { "pattern": "land grab", "label": "LANDGRAB", "canonical": "LAND_GRAB" },
+    { "pattern": "grabbed", "label": "LANDGRAB", "canonical": "LAND_GRAB" },
+    { "pattern": "seized the farm", "label": "LANDGRAB", "canonical": "FARM_SEIZED" },
+    { "pattern": "land dispossession", "label": "LANDGRAB", "canonical": "DISPOSSESSION" },
+    { "pattern": "burned", "label": "VIOLENCE", "canonical": "ARSON" },
+    { "pattern": "attacked", "label": "VIOLENCE", "canonical": "ATTACK" },
+    { "pattern": "clashes", "label": "VIOLENCE", "canonical": "CLASHES" },
+    { "pattern": "fake news", "label": "DISINFO", "canonical": "FAKE_NEWS" },
+    { "pattern": "rumor", "label": "DISINFO", "canonical": "RUMOR" },
+    { "pattern": "agrivest", "label": "ORG", "canonical": "AGRIVEST" },
+    { "pattern": "governor tano", "label": "PERSON", "canonical": "GOV. TANO" },
+    { "pattern": "tano", "label": "PERSON", "canonical": "GOV. TANO" },
+    { "pattern": "kone", "label": "PERSON", "canonical": "KONE" },
+    { "pattern": "abidjan", "label": "LOCATION", "canonical": "ABIDJAN" },
+    { "pattern": "bouake", "label": "LOCATION", "canonical": "BOUAKE" },
+    { "pattern": "gagnoa", "label": "LOCATION", "canonical": "GAGNOA" },
+    { "pattern": "san pedro", "label": "LOCATION", "canonical": "SAN PEDRO" },
+    { "pattern": "daloa", "label": "LOCATION", "canonical": "DALOA" }
+  ],
+  "cooccurrence": { "labels": ["PERSON", "HANDLE", "ORG", "LOCATION"], "relation": "co-mentioned" },
+  "hypotheses": [
+    {
+      "name": "Land-dispossession pattern", "code": "PATTERN", "lock_threshold": 3,
+      "criteria": [
+        { "entity": "LANDGRAB", "weight": 2 },
+        { "entity": "VIOLENCE", "weight": 1 },
+        { "entity": "AGRIVEST", "weight": 1 }
+      ]
+    },
+    {
+      "name": "Coordinated online harassment", "code": "PATTERN", "lock_threshold": 3,
+      "criteria": [
+        { "entity": "HATE", "weight": 2 },
+        { "entity": "DISINFO", "weight": 1 }
+      ]
+    }
+  ],
+  "alert_rules": [
+    { "name": "Hate speech", "on_label": "HATE", "message": "Dehumanizing/hateful phrase detected.", "urgency": "HIGH" },
+    { "name": "Land-grab claim", "on_label": "LANDGRAB", "message": "Alleged land dispossession referenced.", "urgency": "HIGH" },
+    { "name": "Violence reported", "on_label": "VIOLENCE", "message": "Reported violence/arson/clashes.", "urgency": "URGENT" }
+  ]
+}

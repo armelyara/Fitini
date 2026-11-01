@@ -21,6 +21,10 @@ def run_profile(path):
     print(f"# {profile.get('domain','')} / {profile['name']}  [{profile['id']}·{profile.get('stream','')}]")
     print("#" * 80)
 
+    if not profile.get("stream_lines"):
+        print("  (corpus profile — run with: python3 corpus_analyze.py "
+              f"{profile['id']} <folder>)")
+        return
     last = None
     for ln in profile.get("stream_lines", []):
         r = eng.analyze_utterance(ln["text"], ln.get("ts"), ln.get("speaker"))
