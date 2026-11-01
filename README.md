@@ -1,9 +1,34 @@
-# Fitini — Voice Analyzer
+# Fitini — Real-time Correlation Engine
 
-A real-time **audio → transcription → keyword-correlation** pipeline behind a tactical
-"FUI" (fictional user interface). Audio is transcribed on the fly, keywords are highlighted
-and correlated into a target/location matrix, and the live screen locks a subject and raises
-threat alerts.
+Fitini is **one domain-agnostic, real-time correlation engine**. You point it at a domain
+by loading a **domain profile** (`profiles/*.json`) that declares what entities to extract,
+how to correlate them, what counts as a "lock," and what raises an alert. Across every
+domain the pipeline is the same — **extract → correlate → score → lock → alert** — plus the
+feature they all share: a running, timestamped **timeline (chronologie des faits)**.
+
+The same engine serves, as profiles: SIGINT / signals intelligence, clinical consultation
+decision-support, cyber threat intelligence, pharmacovigilance, supply-chain risk, ITSM
+incident grouping, 911 dispatch assist, trading-floor compliance, and e-Discovery.
+
+- **`fitini_core.py`** — the engine (`CorrelationEngine`) + `Timeline`, profile-driven.
+- **`profiles/*.json`** — domain configs (`surveillance`, `healthcare`, `cti`, …).
+- **`demo_domains.py`** — runs the same engine over every profile: `python3 demo_domains.py`
+  (or `python3 demo_domains.py cti healthcare`).
+
+Extraction is a deterministic lexicon + regex (offline, explainable); GLiNER zero-shot NER
+or an LLM extractor can be layered in later, with the knowledge base staying the source of
+truth so every hypothesis and alert is justifiable. The content in the example profiles is
+illustrative, not validated domain knowledge; the healthcare profile is a decision-support
+**prototype, not a medical device**.
+
+---
+
+## Voice Analyzer (the SIGINT reference app)
+
+The first profile ships as a full app: a real-time **audio → transcription →
+keyword-correlation** pipeline behind a tactical "FUI" (fictional user interface). Audio is
+transcribed on the fly, keywords are highlighted and correlated into a target/location
+matrix, and the live screen locks a subject and raises threat alerts.
 
 > **Note.** The "SIGINT / OSINT" styling is an aesthetic recreation of a cinematic
 > surveillance screen. The intelligence layer is a small, configurable keyword/rule engine

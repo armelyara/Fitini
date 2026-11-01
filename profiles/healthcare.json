@@ -1,0 +1,84 @@
+{
+  "id": "healthcare",
+  "name": "Clinical Consultation · Decision Support",
+  "stream": "audio",
+  "_disclaimer": "PROTOTYPE / DECISION-SUPPORT DEMO ONLY. Not a medical device, not for diagnostic use or real patient care. Illustrative content, not validated clinical knowledge. A licensed clinician makes every decision.",
+  "labels": {
+    "SYMPTOM": "#38ef7d", "ANATOMY": "#78a890", "DURATION": "#d8b24a",
+    "INTENSITY": "#d8b24a", "HISTORY": "#78a890"
+  },
+  "patterns": [
+    { "regex": "\\b\\d+\\s*(?:day|days|week|weeks|month|months|hour|hours)\\b", "label": "DURATION", "token": "DURATION" },
+    { "regex": "(?i)since (?:yesterday|this morning|last night|last week)", "label": "DURATION", "token": "DURATION" }
+  ],
+  "lexicon": [
+    { "pattern": "cough", "label": "SYMPTOM", "canonical": "COUGH" },
+    { "pattern": "fever", "label": "SYMPTOM", "canonical": "FEVER" },
+    { "pattern": "hard to breathe", "label": "SYMPTOM", "canonical": "DYSPNEA" },
+    { "pattern": "short of breath", "label": "SYMPTOM", "canonical": "DYSPNEA" },
+    { "pattern": "shortness of breath", "label": "SYMPTOM", "canonical": "DYSPNEA" },
+    { "pattern": "pain in my right chest", "label": "SYMPTOM", "canonical": "CHEST_PAIN" },
+    { "pattern": "chest pain", "label": "SYMPTOM", "canonical": "CHEST_PAIN" },
+    { "pattern": "tired", "label": "SYMPTOM", "canonical": "FATIGUE" },
+    { "pattern": "loss of smell", "label": "SYMPTOM", "canonical": "ANOSMIA" },
+    { "pattern": "chest", "label": "ANATOMY", "canonical": "CHEST" },
+    { "pattern": "sharp", "label": "INTENSITY", "canonical": "SHARP" },
+    { "pattern": "smoker", "label": "HISTORY", "canonical": "SMOKER" },
+    { "pattern": "diabetes", "label": "HISTORY", "canonical": "DIABETES" }
+  ],
+  "hypotheses": [
+    {
+      "name": "Community-Acquired Pneumonia", "code": "J18.9", "lock_threshold": 6,
+      "criteria": [
+        { "entity": "COUGH", "weight": 1 },
+        { "entity": "FEVER", "weight": 2 },
+        { "entity": "DYSPNEA", "weight": 2 },
+        { "entity": "CHEST_PAIN", "weight": 1 },
+        { "entity": "FATIGUE", "weight": 1 },
+        { "entity": "SMOKER", "weight": 1 },
+        { "entity": "CRACKLES", "weight": 2, "question": "Auscultate the lungs — any crackles / bronchial breath sounds?" }
+      ]
+    },
+    {
+      "name": "Acute Bronchitis", "code": "J20.9", "lock_threshold": 4,
+      "criteria": [
+        { "entity": "COUGH", "weight": 2 },
+        { "entity": "FEVER", "weight": 1 },
+        { "entity": "FATIGUE", "weight": 1 },
+        { "entity": "SPUTUM", "weight": 1, "question": "Is the cough productive? What colour is the sputum?" }
+      ]
+    },
+    {
+      "name": "COVID-19", "code": "U07.1", "lock_threshold": 4,
+      "criteria": [
+        { "entity": "COUGH", "weight": 1 },
+        { "entity": "FEVER", "weight": 1 },
+        { "entity": "DYSPNEA", "weight": 1 },
+        { "entity": "FATIGUE", "weight": 1 },
+        { "entity": "ANOSMIA", "weight": 2, "question": "Any recent loss of smell or taste?" }
+      ]
+    },
+    {
+      "name": "Pulmonary Embolism", "code": "I26.9", "lock_threshold": 5, "red_flag": true,
+      "criteria": [
+        { "entity": "DYSPNEA", "weight": 2 },
+        { "entity": "CHEST_PAIN", "weight": 2 },
+        { "entity": "SMOKER", "weight": 1 },
+        { "entity": "TACHYCARDIA", "weight": 2, "question": "Measure heart rate — tachycardia? Check SpO2." }
+      ]
+    }
+  ],
+  "alert_rules": [
+    { "name": "Red flag: possible Pulmonary Embolism", "all_of": ["DYSPNEA", "CHEST_PAIN"],
+      "message": "Dyspnea + pleuritic chest pain — consider urgent work-up to rule out PE (Wells, D-dimer/CTPA).",
+      "urgency": "URGENT" }
+  ],
+  "stream_lines": [
+    { "ts": "00:12", "speaker": "PATIENT", "text": "I've had a cough for five days." },
+    { "ts": "00:21", "speaker": "PATIENT", "text": "And a fever since yesterday." },
+    { "ts": "00:34", "speaker": "PATIENT", "text": "It's hard to breathe when I walk." },
+    { "ts": "00:48", "speaker": "PATIENT", "text": "I have a sharp pain in my right chest when I breathe in." },
+    { "ts": "01:02", "speaker": "PATIENT", "text": "I feel very tired." },
+    { "ts": "01:10", "speaker": "PATIENT", "text": "I'm a smoker and I have diabetes." }
+  ]
+}
