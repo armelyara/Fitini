@@ -1,0 +1,98 @@
+{
+  "auth": {
+    "operator_id": "OP-7781 // VESPER",
+    "passphrase": "fitini",
+    "token_ttl_seconds": 3600,
+    "_comment": "Demo credential only. Override passphrase with env FITINI_PASSPHRASE. Never ship a real deployment with a plaintext passphrase in config."
+  },
+  "pipeline": {
+    "sample_rate": 16000,
+    "model_size": "base.en",
+    "device": "cpu",
+    "compute_type": "int8",
+    "vad_threshold": 0.5,
+    "silence_frames": 18,
+    "chunk_samples": 512,
+    "simulation_interval_seconds": 1.1,
+    "beam_size": 1,
+    "language": "en"
+  },
+  "default_settings": {
+    "vad": true,
+    "diarize": true,
+    "redact": false,
+    "autolock": true,
+    "language": "en",
+    "model_label": "faster-whisper · base.en",
+    "vad_threshold": 0.62
+  },
+  "knowledge_base": [
+    {
+      "pattern": "alexander",
+      "canonical": "ALEXANDER",
+      "category": "ALIAS",
+      "slot": [0, 0],
+      "pair": [0, 1, "AMIRI"],
+      "linked_subject": "AMIRI",
+      "confidence": 0.91,
+      "arrow": false
+    },
+    {
+      "pattern": "security",
+      "canonical": "SECURITY",
+      "category": "SECTOR",
+      "slot": [1, 0],
+      "pair": [1, 1, "UKRAINE"],
+      "confidence": 0.85,
+      "arrow": false
+    },
+    {
+      "pattern": "cat burglar",
+      "canonical": "CAT BURGLAR",
+      "category": "ACTOR",
+      "slot": [2, 0],
+      "pair": [2, 1, "BLACK SEA"],
+      "confidence": 0.79,
+      "arrow": false
+    },
+    {
+      "pattern": "flying fowl",
+      "canonical": "FLYING FOWL",
+      "category": "ASSET",
+      "slot": [3, 0],
+      "confidence": 0.88,
+      "arrow": true
+    },
+    {
+      "pattern": "72 hours",
+      "canonical": "72 HOURS",
+      "category": "DEADLINE",
+      "slot": [4, 0],
+      "confidence": 0.9,
+      "arrow": false
+    }
+  ],
+  "entity_meta": {
+    "AMIRI": { "category": "SUBJECT", "confidence": 0.94 },
+    "UKRAINE": { "category": "PLACE", "confidence": 0.85 },
+    "BLACK SEA": { "category": "PLACE", "confidence": 0.82 }
+  },
+  "locations_lock_threshold": 2,
+  "redact_patterns": ["cash", "jewellery", "jewelry"],
+  "simulated_intercept": [
+    { "ts": "09:11:02", "text": "We need to talk." },
+    { "ts": "09:11:05", "text": "I just spoke to Alexander." },
+    { "ts": "09:11:09", "text": "Wasn't easy getting an answer out of him." },
+    { "ts": "09:11:13", "text": "He's in a terrible mood." },
+    { "ts": "09:11:17", "text": "You know he prides himself on his security." },
+    { "ts": "09:11:22", "text": "Some cat burglar got in last night, gassed the house." },
+    { "ts": "09:11:27", "text": "Cleaned out all his cash and jewellery." },
+    { "ts": "09:11:31", "text": "On leaving, Alexander's personal guards stopped him." },
+    { "ts": "09:11:36", "text": "He hospitalized two of his guards." },
+    { "ts": "09:11:40", "text": "One with a broken nose, three cracked ribs." },
+    { "ts": "09:11:45", "text": "The other one, a bullet in the foot." },
+    { "ts": "09:11:50", "text": "They're going to carry on. I'm waiting on confirmation." },
+    { "ts": "09:11:56", "text": "They're moving Flying Fowl in 72 hours." },
+    { "ts": "09:12:01", "text": "They should be ready." }
+  ]
+}

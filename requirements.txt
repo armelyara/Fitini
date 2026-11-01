@@ -1,0 +1,21 @@
+# ---- Core (required) : runs the full app in simulation mode ----------------
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+websockets==13.0.1
+python-multipart==0.0.9
+
+# ---- Optional : live microphone + real audio transcription -----------------
+# Install these for USE_MIC=1 or to transcribe real uploaded files.
+#   pip install faster-whisper==1.0.3 torch==2.4.0 torchaudio==2.4.0 \
+#               sounddevice==0.5.0 numpy==1.26.4
+#
+# faster-whisper==1.0.3
+# torch==2.4.0
+# torchaudio==2.4.0
+# sounddevice==0.5.0
+# numpy==1.26.4
+
+# ---- Optional : supplementary spaCy NER (set settings.ner_spacy = true) -----
+#   pip install spacy==3.7.6 && python -m spacy download en_core_web_sm
+#
+# spacy==3.7.6

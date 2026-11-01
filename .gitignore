@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# App data
+fitini.db
+*.sqlite3
+
+# OS / editor
+.DS_Store
+*.swp
