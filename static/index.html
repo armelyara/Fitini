@@ -151,7 +151,7 @@ function resetIntercept(){
   state.lines=[];state.pending=[];state.anim=null;
   state.rows=Array.from({length:6},()=>["",""]);state.subject="SEARCHING...";
   state.locations=[];state.idLocked=false;state.locationLocked=false;state.link=null;state.activeCanon=null;
-  state.alertOpen=false;state.alert=null;state.flagQueue=[];state.flagBusy=false;
+  state.alertOpen=false;state.alert=null;state.flagQueue=[];state.flagBusy=false;state.hotCanon=null;
 }
 // An utterance arrives -> queue it; the scan types it out word by word.
 function onUtterance(msg){
@@ -183,8 +183,7 @@ function stepReveal(){
       const canon=sp.seg.canonical, st=a.state;
       for(let r=0;r<6;r++){ if(st.rows[r][0]===canon){ state.rows[r][0]=st.rows[r][0]; state.rows[r][1]=st.rows[r][1]; } }
       if(sp.seg.kind==="kw_lock"){
-        state.alert=a.alert||{code:canon,detail:"Target asset relocation detected in live intercept.",confidence:0.9,window:"72:00:00"};
-        state.alertOpen=true;
+        a.lockAlert=a.alert||{code:canon,detail:"Target asset relocation detected in live intercept.",confidence:0.9,window:"72:00:00"};
       }
       newFlags.push(canon);
     }
@@ -208,6 +207,7 @@ function finishLine(){
   const st=a.state;                                      // apply this utterance's cumulative state
   state.rows=st.rows;state.subject=st.subject;state.idLocked=st.id_locked;
   state.locations=st.locations;state.locationLocked=st.location_locked;
+  if(a.lockAlert){ state.alert=a.lockAlert; state.alertOpen=true; }   // pop the threat only after its arrow has been seen
   state.anim=null;
   updateIntercept();
   startReveal();                                         // type the next queued line
@@ -243,7 +243,14 @@ function afterFlags(){
   else { revealTimer=setInterval(stepReveal,28); }       // keep typing the rest of the line
 }
 // Appear -> hold -> fade for a single flagged keyword.
+// Move the green focus frame to a word's cell; it hops forward and stays on the latest.
+function setHotCell(canon){
+  state.hotCanon=canon;
+  document.querySelectorAll(".cell-hot").forEach(el=>el.classList.remove("cell-hot"));
+  const c=cellForCanon(canon); if(c) c.classList.add("cell-hot");
+}
 function flashArrow(canon,done){
+  setHotCell(canon);                                   // frame travels to this word's cell as it appears
   requestAnimationFrame(()=>{
     removeLeader();
     const cell=cellForCanon(canon);
@@ -251,7 +258,6 @@ function flashArrow(canon,done){
     const m=spans.length?spans[spans.length-1]:null;
     if(m) m.classList.add("kw-flash");
     if(typeof LeaderLine==="undefined"||!cell||!m){ setTimeout(done,200); return; }
-    cell.classList.add("cell-hot");
     try{
       leader=new LeaderLine(m,cell,{
         color:"rgba(120,168,144,0.95)", size:2, path:"straight",
@@ -261,10 +267,10 @@ function flashArrow(canon,done){
       leader.hide("none");
       leader.show("draw",{duration:220});
       state.link=true;
-    }catch(e){ cell.classList.remove("cell-hot"); setTimeout(done,200); return; }
+    }catch(e){ setTimeout(done,200); return; }
     setTimeout(()=>{
       try{ leader.hide("fade",{duration:FLAG_FADE}); }catch(e){}
-      setTimeout(()=>{ removeLeader(); cell.classList.remove("cell-hot"); state.link=false; done(); }, FLAG_FADE+40);
+      setTimeout(()=>{ removeLeader(); state.link=false; done(); }, FLAG_FADE+40);   // frame stays on the cell
     }, FLAG_HOLD);
   });
 }
@@ -448,8 +454,8 @@ function transcriptInner(){
 function railInner(){
   const matrix=[];
   for(let r=0;r<6;r++)for(let c=0;c<2;c++){
-    const val=state.rows[r][c];const active=false;
-    matrix.push(`<div id="cell-${r}-${c}" style="${cellStyle(active,!!val)}"><span>${esc(val||"—")}</span></div>`);
+    const val=state.rows[r][c];const hot=(c===0&&!!val&&state.rows[r][0]===state.hotCanon);
+    matrix.push(`<div id="cell-${r}-${c}" class="${hot?"cell-hot":""}" style="${cellStyle(false,!!val)}"><span>${esc(val||"—")}</span></div>`);
   }
   const locs=state.locations.map(l=>`<div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:11px;letter-spacing:.1em"><span style="width:7px;height:7px;background:var(--fit-green)"></span><span style="color:var(--fit-green)">${esc(l)}</span><span style="color:var(--fit-text-faint);margin-left:auto">LOCKED</span></div>`).join("");
   const locLabel=state.locations.length>=2?"Locked":state.locations.length?"Partial":"Scanning";
