@@ -43,6 +43,46 @@ class Timeline:
         return list(self.events)
 
 
+def combine_profiles(profiles, name="Combined", pid="combined"):
+    """Merge several domain knowledge packs into one profile the engine runs.
+
+    This is what the UI's mandatory domain selection maps onto: pick one or
+    several domains -> their packs are combined into a single pipeline. Pure
+    (no I/O): the app layer loads the JSON files and passes the dicts here.
+
+    lexicon / patterns / links / hypotheses / alert_rules are concatenated
+    (lexicon de-duplicated on (pattern, label)); labels are unioned; cooccurrence
+    labels are unioned. stream_lines are per-scenario demo input, not merged.
+    """
+    labels, lexicon, seen = {}, [], set()
+    patterns, links, hyps, alerts = [], [], [], []
+    cooc_labels, cooc_rel = [], None
+    for prof in profiles:
+        labels.update(prof.get("labels", {}))
+        for lx in prof.get("lexicon", []):
+            key = (lx.get("pattern", "").lower(), lx.get("label"))
+            if key not in seen:
+                seen.add(key)
+                lexicon.append(lx)
+        patterns += prof.get("patterns", [])
+        links += prof.get("links", [])
+        hyps += prof.get("hypotheses", [])
+        alerts += prof.get("alert_rules", [])
+        c = prof.get("cooccurrence")
+        if c:
+            for lab in c.get("labels", []):
+                if lab not in cooc_labels:
+                    cooc_labels.append(lab)
+            cooc_rel = cooc_rel or c.get("relation")
+    combined = {"id": pid, "domain": "Multi", "name": name, "labels": labels,
+                "lexicon": lexicon, "patterns": patterns, "links": links,
+                "hypotheses": hyps, "alert_rules": alerts}
+    if cooc_labels:
+        combined["cooccurrence"] = {"labels": cooc_labels,
+                                    "relation": cooc_rel or "co-mentioned"}
+    return combined
+
+
 class CorrelationEngine:
     def __init__(self, profile: Dict[str, Any]):
         self.profile = profile
