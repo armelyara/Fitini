@@ -149,9 +149,10 @@ class CorrelationEngine:
         # the user's subject, not a pre-baked keyword list.
         self.watchlist = [str(t).strip() for t in (watchlist or []) if str(t).strip()]
         if self.watchlist:
-            for t in self.watchlist:
-                self.lexicon.append({"pattern": t.lower(), "label": "WATCH",
-                                     "canonical": t.upper()})
+            # the user's subject takes PRIORITY over any profile term with the same text
+            watch_entries = [{"pattern": t.lower(), "label": "WATCH", "canonical": t.upper()}
+                             for t in self.watchlist]
+            self.lexicon = watch_entries + self.lexicon
             self.alert_rules = self.alert_rules + [{
                 "name": "Sujet suivi", "on_label": "WATCH",
                 "message": "Terme de la liste de surveillance mentionne.",

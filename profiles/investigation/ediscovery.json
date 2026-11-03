@@ -3,50 +3,90 @@
   "domain": "Investigation",
   "name": "e-Discovery · Depositions & Leaks",
   "stream": "text",
-  "_note": "Illustrative demo content. Ingest hearings/depositions/leaked records; index who relates to whom and build a chronology.",
   "labels": {
-    "PERSON": "#38ef7d", "ORG": "#78a890", "DATE": "#d8b24a",
-    "MONEY": "#d8b24a", "FLAG": "#e2574f"
+    "PERSON": "#38ef7d",
+    "ORG": "#78a890",
+    "DATE": "#d8b24a",
+    "MONEY": "#d8b24a",
+    "FLAG": "#e2574f"
   },
   "patterns": [
-    { "regex": "\\$\\d[\\d,]*(?:\\.\\d+)?(?:\\s?(?:million|billion|k|m|bn))?", "label": "MONEY", "token": "MONEY" },
-    { "regex": "(?i)\\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\\s+\\d{1,2}(?:,?\\s*\\d{4})?\\b", "label": "DATE", "token": "DATE" },
-    { "regex": "\\b(?:19|20)\\d{2}\\b", "label": "DATE", "token": "DATE" }
+    {
+      "regex": "\\$\\d[\\d,]*(?:\\.\\d+)?(?:\\s?(?:million|billion|k|m|bn))?",
+      "label": "MONEY",
+      "token": "MONEY"
+    },
+    {
+      "regex": "(?i)\\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\\s+\\d{1,2}(?:,?\\s*\\d{4})?\\b",
+      "label": "DATE",
+      "token": "DATE"
+    },
+    {
+      "regex": "\\b(?:19|20)\\d{2}\\b",
+      "label": "DATE",
+      "token": "DATE"
+    }
   ],
   "lexicon": [
-    { "pattern": "halloran", "label": "PERSON", "canonical": "HALLORAN" },
-    { "pattern": "delacroix", "label": "PERSON", "canonical": "DELACROIX" },
-    { "pattern": "vance", "label": "PERSON", "canonical": "SEN. VANCE" },
-    { "pattern": "nexus corp", "label": "ORG", "canonical": "NEXUS CORP" },
-    { "pattern": "nexus", "label": "ORG", "canonical": "NEXUS CORP" },
-    { "pattern": "meridian holdings", "label": "ORG", "canonical": "MERIDIAN HOLDINGS" },
-    { "pattern": "meridian", "label": "ORG", "canonical": "MERIDIAN HOLDINGS" },
-    { "pattern": "offshore account", "label": "FLAG", "canonical": "OFFSHORE" },
-    { "pattern": "shell company", "label": "FLAG", "canonical": "SHELL_COMPANY" },
-    { "pattern": "kickback", "label": "FLAG", "canonical": "KICKBACK" },
-    { "pattern": "wire transfer", "label": "FLAG", "canonical": "WIRE_TRANSFER" }
+    {
+      "pattern": "offshore account",
+      "label": "FLAG",
+      "canonical": "OFFSHORE"
+    },
+    {
+      "pattern": "shell company",
+      "label": "FLAG",
+      "canonical": "SHELL_COMPANY"
+    },
+    {
+      "pattern": "kickback",
+      "label": "FLAG",
+      "canonical": "KICKBACK"
+    },
+    {
+      "pattern": "wire transfer",
+      "label": "FLAG",
+      "canonical": "WIRE_TRANSFER"
+    }
   ],
-  "cooccurrence": { "labels": ["PERSON", "ORG"], "relation": "linked in testimony" },
+  "cooccurrence": {
+    "labels": [
+      "PERSON",
+      "ORG"
+    ],
+    "relation": "linked in testimony"
+  },
   "hypotheses": [
     {
-      "name": "Illicit payment scheme", "code": "CASE", "lock_threshold": 3,
+      "name": "Illicit payment scheme",
+      "code": "CASE",
+      "lock_threshold": 3,
       "criteria": [
-        { "entity": "WIRE_TRANSFER", "weight": 1 },
-        { "entity": "OFFSHORE", "weight": 1 },
-        { "entity": "SHELL_COMPANY", "weight": 1 },
-        { "entity": "KICKBACK", "weight": 2 }
+        {
+          "entity": "WIRE_TRANSFER",
+          "weight": 1
+        },
+        {
+          "entity": "OFFSHORE",
+          "weight": 1
+        },
+        {
+          "entity": "SHELL_COMPANY",
+          "weight": 1
+        },
+        {
+          "entity": "KICKBACK",
+          "weight": 2
+        }
       ]
     }
   ],
   "alert_rules": [
-    { "name": "Compliance flag", "on_label": "FLAG",
-      "message": "Suspicious financial term referenced in testimony.", "urgency": "HIGH" }
-  ],
-  "stream_lines": [
-    { "ts": "p.14", "speaker": "DEPO", "text": "Halloran testified that he met Delacroix in March 2019." },
-    { "ts": "p.22", "speaker": "DEPO", "text": "Delacroix arranged a wire transfer to Nexus Corp." },
-    { "ts": "p.23", "speaker": "DEPO", "text": "The payment, roughly $2.5 million, went through an offshore account." },
-    { "ts": "p.31", "speaker": "DEPO", "text": "Senator Vance allegedly received a kickback from Meridian Holdings." },
-    { "ts": "p.40", "speaker": "DEPO", "text": "Emails link Nexus Corp and Meridian Holdings through a shell company." }
+    {
+      "name": "Compliance flag",
+      "on_label": "FLAG",
+      "message": "Suspicious financial term referenced in testimony.",
+      "urgency": "HIGH"
+    }
   ]
 }

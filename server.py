@@ -198,14 +198,26 @@ async def _sim_stream(domain_ids):
         yield {"ts": ln.get("ts"), "text": ln["text"], "speaker": ln.get("speaker")}
 
 
-def _flag_canonicals(p):
-    """Words that fired a rule THIS frame: an entity (or a spoken word linked to one)
-    that triggered an alert, or that newly satisfied a hypothesis criterion. The UI
-    draws a flag arrow only for these -- engine logic, not decoration."""
+GENERIC_FLAG_LABELS = {"WATCH", "MONEY", "IBAN", "COORD", "CODEWORD", "CVE",
+                       "WEAPON", "VIOLENCE", "HATE", "LANDGRAB", "ADVERSE_EFFECT",
+                       "FLAG", "MALWARE", "APT"}
+
+
+def _flag_canonicals(p, engine=None):
+    """Which spoken words fired THIS frame -- generalized by type & relation, so it
+    works for any subject, not just pre-written rules. A shown word flags if it:
+      (a) triggered an alert this frame, or
+      (b) newly satisfied a hypothesis criterion, or
+      (c) is of a high-signal type (money, IBAN, coord, codeword, CVE, violence...),
+          or is the user's watchlist subject (WATCH), or
+      (d) is a NEW entity correlated this frame to the user's subject,
+    plus propagation through links (a spoken word implies a flagged entity)."""
     segs = p.get("segs", [])
     shown = [s["canonical"] for s in segs if s.get("canonical")]
+    shownset = set(shown)
     newset = set(p.get("new_entities", []))
     interest = set()
+    # (a) alerts fired this frame
     for a in p.get("alerts", []):
         val = a.get("value")
         if val:
@@ -214,10 +226,30 @@ def _flag_canonicals(p):
                     interest.add(s["canonical"])
         for e in (a.get("all_of") or []):
             interest.add(e)
+    # (b) newly satisfied hypothesis criteria
     for h in p.get("hypotheses", []):
         for e in (h.get("present") or []):
             if e in newset:
                 interest.add(e)
+    # (c) high-signal types (and the user's WATCH subject) shown this frame
+    for s in segs:
+        c = s.get("canonical")
+        if c and (s.get("label") or "").upper() in GENERIC_FLAG_LABELS:
+            interest.add(c)
+    # (d) new entities correlated this frame to the user's subject (WATCH) or to interest
+    watch_all = set()
+    if engine is not None:
+        watch_all = {c for c, v in engine.entities.items()
+                     if (v.get("category") or "") == "WATCH"}
+    anchor = watch_all | interest
+    for pair in p.get("relationships", []):
+        if len(pair) >= 2:
+            a, b = pair[0], pair[1]
+            if a in anchor and b in newset and b in shownset:
+                interest.add(b)
+            if b in anchor and a in newset and a in shownset:
+                interest.add(a)
+    # link propagation
     linked = set()
     for pair in p.get("relationships", []):
         if len(pair) >= 2:
@@ -310,7 +342,7 @@ async def websocket_intercept(websocket: WebSocket,
         async for utt in source:
             payload = engine.analyze_utterance(utt["text"], utt.get("ts"), utt.get("speaker"))
             payload["type"] = "utterance"
-            payload["flag_canonicals"] = _flag_canonicals(payload)
+            payload["flag_canonicals"] = _flag_canonicals(payload, engine)
             alerts += payload.get("alerts", [])
             await websocket.send_json(payload)
 

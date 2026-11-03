@@ -3,9 +3,6 @@ audio_transcriber.py — audio acquisition + transcription for Fitini Voice Anal
 
 Three sources, one async interface (`stream_transcriptions`):
 
-  * SIMULATION (default)  — replays the scripted intercept from config.json. Needs no
-                            audio hardware and no ML models, so the whole app runs with
-                            only fastapi + uvicorn installed.
   * MICROPHONE            — sounddevice capture -> Silero VAD gating -> faster-whisper.
   * FILE                  — transcribe a recorded file with faster-whisper.
 
@@ -64,19 +61,9 @@ class AudioStreamTranscriber:
 
     # ------------------------------------------------------------------ #
     async def stream_transcriptions(self) -> AsyncGenerator[Dict[str, str], None]:
-        """Yield {'ts', 'text'} dicts as speech is transcribed."""
-        if not self.use_microphone:
-            async for item in self._stream_simulation():
-                yield item
-            return
+        """Yield {'ts', 'text'} dicts as speech is transcribed (live capture)."""
         async for item in self._stream_microphone():
             yield item
-
-    # ------------------------------------------------------------------ #
-    async def _stream_simulation(self) -> AsyncGenerator[Dict[str, str], None]:
-        for line in self.config.get("simulated_intercept", []):
-            await asyncio.sleep(self.sim_interval)
-            yield {"ts": line.get("ts") or self._now_ts(), "text": line["text"]}
 
     # ------------------------------------------------------------------ #
     def _audio_callback(self, indata, frames, time_info, status):  # pragma: no cover

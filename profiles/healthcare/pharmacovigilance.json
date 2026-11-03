@@ -110,22 +110,5 @@
       "message": "Serious adverse effect reported — candidate pharmacovigilance signal.",
       "urgency": "HIGH"
     }
-  ],
-  "stream_lines": [
-    {
-      "ts": "ref1",
-      "speaker": "RECORD",
-      "text": "Patient on azathioprine developed severe neutropenia."
-    },
-    {
-      "ts": "ref2",
-      "speaker": "RECORD",
-      "text": "Genotyping revealed a TPMT loss-of-function variant."
-    },
-    {
-      "ts": "ref3",
-      "speaker": "LIT",
-      "text": "The TPMT–azathioprine interaction causing neutropenia is well documented."
-    }
   ]
 }

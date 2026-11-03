@@ -73,7 +73,7 @@ const CMDS=[
 const NAV=[["intercept","01 INTERCEPT"],["analyze","02 ANALYSE"],["report","03 REPORT"],["dossier","04 DOSSIER"],["archive","05 ARCHIVE"],["config","06 CONFIG"]];
 
 const S={
-  screen:"intercept", token:localStorage.getItem("fitini_tok")||null, opId:"OP-7781 // VESPER", clock:"--:--:-- UTC",
+  screen:"intercept", token:localStorage.getItem("fitini_tok")||null, opId:"OPÉRATEUR", clock:"--:--:-- UTC",
   domain:"justice", domainsOpen:false, subject:"",
   started:false, done:false, streaming:false,
   lines:[], frames:[], detectedOrder:[], rows:emptyRows(), cellOf:{}, hotCanon:null,
@@ -114,7 +114,7 @@ function shell(main){
     <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:9px 20px;border-bottom:1px solid var(--fit-border);background:var(--fit-surface-3);flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:18px">
         <span style="font-size:16px;letter-spacing:.34em;color:var(--fit-green);text-shadow:0 0 10px var(--fit-green-glow);font-weight:700">FITINI</span>
-        <span style="font-size:10px;letter-spacing:.2em;color:var(--fit-sage)">POSTE D'ANALYSE · RESTRICTED · CH.07</span>
+        <span style="font-size:10px;letter-spacing:.2em;color:var(--fit-sage)">POSTE D'ANALYSE · RESTRICTED</span>
       </div>
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <span id="clock" style="font-size:11px;color:var(--fit-text-muted);letter-spacing:.1em">${esc(S.clock)}</span>
@@ -175,7 +175,7 @@ function viewIntercept(){
     <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:0">
       <div style="padding-right:28px;border-right:1px solid var(--fit-border);display:flex;flex-direction:column;gap:11px;min-height:0">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:11px;letter-spacing:.2em;color:var(--fit-sage)">TRANSCRIPTION EN DIRECT · CH.07</span>
+          <span style="font-size:11px;letter-spacing:.2em;color:var(--fit-sage)">TRANSCRIPTION EN DIRECT</span>
           <span id="lc" style="font-size:10px;color:var(--fit-text-faint)"></span>
         </div>
         <div id="transcript" style="display:flex;flex-direction:column;gap:11px"></div>
@@ -216,7 +216,7 @@ function renderMatrix(){ const el=$("matrix"); if(!el)return; let h="";
   el.innerHTML=h;
 }
 function renderSummary(){ const el=$("summary"); if(!el)return;
-  const subj=S.summary.entities.includes("AMIRI")?"AMIRI":(S.summary.entities[0]||"SEARCHING...");
+  const subj=S.summary.entities[0]||"—";
   const loc=S.locations.length>=2?"Locked":S.locations.length?"Partial":"Scanning";
   const idc=S.summary.locked?"Confirmed":"Pending";
   const g=(k,v,col)=>`<div><div style="color:var(--fit-text-muted);font-size:11px">${k}</div><div style="color:${col||"var(--fit-text)"};font-weight:700;letter-spacing:.04em;margin-top:3px">${esc(v)}</div></div>`;
@@ -285,7 +285,7 @@ function graphSvg(){
 }
 
 /* ---- secondary ---- */
-function viewDossier(){ const subj=S.summary.locked?"AMIRI":(S.summary.entities[0]||"—");
+function viewDossier(){ const subj=S.summary.entities[0]||"—";
   const ents=S.summary.entities.map(e=>`<span style="font-size:12px;letter-spacing:.08em;padding:7px 12px;border:1px solid var(--fit-green-dim);color:var(--fit-green);background:var(--fit-surface-2)">${esc(e)}</span>`).join("")||"—";
   return `<div style="padding:26px 34px"><div style="font-size:22px;letter-spacing:.1em;margin-bottom:18px">DOSSIER · ${esc(subj)}</div>
     ${win("Réseau — entités liées",`<div style="padding:16px;display:flex;flex-wrap:wrap;gap:10px">${ents}</div>`)}</div>`;}
@@ -411,7 +411,7 @@ function doAction(a){ switch(a){
   case "graphe": toReportThen(()=>addResult("Graphe de relations",S.summary.entities.length+" entités · "+S.relationships.length+" liens.","moteur · corrélation"));break;
   case "flags": toReportThen(()=>addResult("Anomalies",S.flags.length+" flag(s) détecté(s).","moteur · règles d'alerte"));break;
   case "cross": S.crossOpen=true;render();break;
-  case "filter": S.filterEnt=S.filterEnt?null:(S.summary.locked?"AMIRI":S.summary.entities[0]||null);render();break; } }
+  case "filter": S.filterEnt=S.filterEnt?null:(S.summary.entities[0]||null);render();break; } }
 function doCross(a,b){toReportThen(()=>addResult("Croisement "+a+" × "+b,crossCount(a,b)+" passage(s) commun(s).","flux courant"));}
 function crossCount(a,b){let n=0;S.frames.forEach(f=>{const ks=(f.segs||[]).filter(s=>s.canonical).map(s=>s.canonical);if(ks.includes(a)&&ks.includes(b))n++;});return n;}
 function findCount(w){let n=0;S.frames.forEach(f=>(f.segs||[]).forEach(s=>{if((s.text||"").toLowerCase().includes(w.toLowerCase()))n++;}));return n;}
@@ -463,7 +463,8 @@ async function uploadFile(file){const st=$("analyze-status");if(!file)return;if(
 
 /* ================= boot ================= */
 async function boot(){
-  if(!S.token){try{const r=await api("/api/login",{method:"POST",json:{operator_id:"OP-7781",passphrase:"fitini"}});S.token=r.token;localStorage.setItem("fitini_tok",S.token);}catch(e){}}
+  if(!S.token){try{const r=await api("/api/login",{method:"POST",json:{operator_id:"ANALYSTE",passphrase:"fitini"}});S.token=r.token;localStorage.setItem("fitini_tok",S.token);}catch(e){}}
+  try{const me=await api("/api/me");if(me&&me.operator_id)S.opId=me.operator_id;}catch(e){}
   try{const d=await api("/api/domains");if(d&&d.domains&&d.domains.length)DOMAINS=d.domains;}catch(e){}
   render();
 }

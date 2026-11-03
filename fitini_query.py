@@ -3,7 +3,7 @@ fitini_query.py — the interactive analyst brain. Ask Fitini follow-up question
 
 Fitini is not "input -> one report -> done". After the first brief you keep asking:
   "give me the chronology", "when did the land grab happen?", "what's the date of the
-  testimony?", "who is connected to AgriVest?", "anything about violence in Gagnoa?".
+  testimony?", "who is connected to the main subject?", "anything about violence?".
 
 An AnalystSession ingests a corpus (or a live stream) once, holds the extracted structure
 (entities, relationships, dated events, passages, flags), and answers follow-up questions
@@ -206,7 +206,7 @@ if __name__ == "__main__":
         "When did the land grab happen?",
         "What's the date of the testimony?",
         "Who are the main actors?",
-        "Who is connected to AgriVest?",
+        "Who is connected to the main subject?",
         "Anything about violence in Gagnoa?",
     ]
     for q in conversation:

@@ -140,32 +140,5 @@
       "message": "Known CVE referenced — check exposure/patch status.",
       "urgency": "HIGH"
     }
-  ],
-  "stream_lines": [
-    {
-      "ts": "T0",
-      "speaker": "REPORT",
-      "text": "The incident began with a spear-phishing email delivering a malicious attachment."
-    },
-    {
-      "ts": "T1",
-      "speaker": "REPORT",
-      "text": "Analysts attribute the activity to APT28 based on infrastructure overlap."
-    },
-    {
-      "ts": "T2",
-      "speaker": "REPORT",
-      "text": "The payload exploited CVE-2023-23397 for privilege escalation."
-    },
-    {
-      "ts": "T3",
-      "speaker": "REPORT",
-      "text": "Post-exploitation used Cobalt Strike beacons calling back to 185.220.101.47."
-    },
-    {
-      "ts": "T4",
-      "speaker": "REPORT",
-      "text": "Lateral movement leveraged Mimikatz to harvest credentials."
-    }
   ]
 }

@@ -3,7 +3,6 @@
   "domain": "Investigation",
   "name": "Social-Media Investigation",
   "stream": "corpus",
-  "_note": "Illustrative, fictional demo content. This organizes publicly-sourced evidence for a human investigator/journalist; it does not judge or accuse. Cite sources; verify before acting.",
   "labels": {
     "PERSON": "#38ef7d",
     "HANDLE": "#38ef7d",
@@ -107,51 +106,6 @@
       "pattern": "rumor",
       "label": "DISINFO",
       "canonical": "RUMOR"
-    },
-    {
-      "pattern": "agrivest",
-      "label": "ORG",
-      "canonical": "AGRIVEST"
-    },
-    {
-      "pattern": "governor tano",
-      "label": "PERSON",
-      "canonical": "GOV. TANO"
-    },
-    {
-      "pattern": "tano",
-      "label": "PERSON",
-      "canonical": "GOV. TANO"
-    },
-    {
-      "pattern": "kone",
-      "label": "PERSON",
-      "canonical": "KONE"
-    },
-    {
-      "pattern": "abidjan",
-      "label": "LOCATION",
-      "canonical": "ABIDJAN"
-    },
-    {
-      "pattern": "bouake",
-      "label": "LOCATION",
-      "canonical": "BOUAKE"
-    },
-    {
-      "pattern": "gagnoa",
-      "label": "LOCATION",
-      "canonical": "GAGNOA"
-    },
-    {
-      "pattern": "san pedro",
-      "label": "LOCATION",
-      "canonical": "SAN PEDRO"
-    },
-    {
-      "pattern": "daloa",
-      "label": "LOCATION",
-      "canonical": "DALOA"
     }
   ],
   "cooccurrence": {
@@ -175,10 +129,6 @@
         },
         {
           "entity": "VIOLENCE",
-          "weight": 1
-        },
-        {
-          "entity": "AGRIVEST",
           "weight": 1
         }
       ]
@@ -217,38 +167,6 @@
       "on_label": "VIOLENCE",
       "message": "Reported violence/arson/clashes.",
       "urgency": "URGENT"
-    }
-  ],
-  "stream_lines": [
-    {
-      "ts": "post01",
-      "speaker": "@ivatrue",
-      "text": "People in Gagnoa are not real Ivorians, they should go back."
-    },
-    {
-      "ts": "post02",
-      "speaker": "FIELD",
-      "text": "Field report: AgriVest seized the farm near San Pedro; families say they stole the land."
-    },
-    {
-      "ts": "post04",
-      "speaker": "NEWS",
-      "text": "Local news: clashes near Daloa left several homes burned."
-    },
-    {
-      "ts": "post05",
-      "speaker": "@ivatrue",
-      "text": "Spread the word, these fake Ivorians took our jobs."
-    },
-    {
-      "ts": "post07",
-      "speaker": "TESTIMONY",
-      "text": "Kone stated that AgriVest and governor Tano arranged the San Pedro land grab."
-    },
-    {
-      "ts": "post08",
-      "speaker": "@landwatch",
-      "text": "More families attacked in Gagnoa; residents call it land dispossession."
     }
   ]
 }
