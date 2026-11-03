@@ -1,848 +1,1420 @@
 {
-  "_meta": "Golden baseline of /ws/intercept utterance frames (simulation mode).",
-  "final_state": {
-    "alerts": [
-      {
-        "code": "FLYING FOWL",
-        "confidence": 0.88,
-        "detail": "Target asset relocation detected in live intercept.",
-        "window": "72:00:00"
-      }
-    ],
+  "_meta": "Golden baseline — canonical fitini_core output on the lawful-intercept reference stream.",
+  "final_relationships": [
+    [
+      "ALEXANDER",
+      "AMIRI"
+    ]
+  ],
+  "final_summary": {
     "entities": [
-      {
-        "category": "SUBJECT",
-        "confidence": 0.94,
-        "name": "AMIRI"
-      },
-      {
-        "category": "ALIAS",
-        "confidence": 0.91,
-        "name": "ALEXANDER"
-      },
-      {
-        "category": "DEADLINE",
-        "confidence": 0.9,
-        "name": "72 HOURS"
-      },
-      {
-        "category": "ASSET",
-        "confidence": 0.88,
-        "name": "FLYING FOWL"
-      },
-      {
-        "category": "SECTOR",
-        "confidence": 0.85,
-        "name": "SECURITY"
-      },
-      {
-        "category": "PLACE",
-        "confidence": 0.85,
-        "name": "UKRAINE"
-      },
-      {
-        "category": "PLACE",
-        "confidence": 0.82,
-        "name": "BLACK SEA"
-      },
-      {
-        "category": "ACTOR",
-        "confidence": 0.79,
-        "name": "CAT BURGLAR"
-      }
+      "ALEXANDER",
+      "AMIRI",
+      "FLYING FOWL",
+      "72 HOURS"
     ],
-    "id_locked": true,
-    "location_locked": true,
-    "locations": [
-      "UKRAINE",
-      "BLACK SEA"
-    ],
-    "subject": "AMIRI"
+    "leading": "Subject identification: AMIRI",
+    "leading_code": "SUBJ",
+    "leading_confidence": 1.0,
+    "locked": "Subject identification: AMIRI"
   },
   "frames": [
     {
-      "alert": null,
-      "entities": [],
+      "alerts": [],
+      "hypotheses": [
+        {
+          "code": "SUBJ",
+          "confidence": 0.0,
+          "lock_threshold": 1,
+          "missing": [
+            {
+              "entity": "AMIRI",
+              "question": null
+            }
+          ],
+          "name": "Subject identification: AMIRI",
+          "present": [],
+          "red_flag": false,
+          "score": 0
+        }
+      ],
+      "new_entities": [],
       "raw_text": "We need to talk.",
+      "relationships": [],
       "segs": [
         {
-          "kind": "plain",
+          "label": null,
           "text": "We need to talk."
         }
       ],
-      "state": {
-        "active_cell": "cell-3-0",
-        "id_locked": false,
-        "location_locked": false,
-        "locations": [],
-        "rows": [
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ]
-        ],
-        "subject": "SEARCHING..."
+      "speaker": null,
+      "suggested_questions": [],
+      "summary": {
+        "entities": [],
+        "leading": "Subject identification: AMIRI",
+        "leading_code": "SUBJ",
+        "leading_confidence": 0.0,
+        "locked": null
       },
+      "timeline": [
+        {
+          "detail": "0%",
+          "kind": "lead",
+          "seq": 1,
+          "source": null,
+          "t": "09:11:02",
+          "text": "Leading: Subject identification: AMIRI"
+        }
+      ],
       "ts": "09:11:02",
-      "type": "utterance",
       "utterance_id": "utt-1"
     },
     {
-      "alert": null,
-      "entities": [
+      "alerts": [
         {
-          "category": "ALIAS",
-          "name": "ALEXANDER"
+          "all_of": [
+            "AMIRI"
+          ],
+          "message": "Watchlist subject identified in intercept.",
+          "name": "Watchlist subject identified",
+          "urgency": "URGENT"
         }
       ],
+      "hypotheses": [
+        {
+          "code": "SUBJ",
+          "confidence": 1.0,
+          "lock_threshold": 1,
+          "missing": [],
+          "name": "Subject identification: AMIRI",
+          "present": [
+            "AMIRI"
+          ],
+          "red_flag": false,
+          "score": 1
+        }
+      ],
+      "new_entities": [
+        "ALEXANDER",
+        "AMIRI"
+      ],
       "raw_text": "I just spoke to Alexander.",
+      "relationships": [
+        [
+          "ALEXANDER",
+          "AMIRI"
+        ]
+      ],
       "segs": [
         {
-          "kind": "plain",
+          "label": null,
           "text": "I just spoke to "
         },
         {
           "canonical": "ALEXANDER",
-          "kind": "kw_norm",
+          "label": "PERSON",
           "text": "Alexander"
         },
         {
-          "kind": "plain",
+          "label": null,
           "text": "."
         }
       ],
-      "state": {
-        "active_cell": "cell-3-0",
-        "id_locked": true,
-        "location_locked": false,
-        "locations": [],
-        "rows": [
-          [
-            "ALEXANDER",
-            "AMIRI"
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ]
+      "speaker": null,
+      "suggested_questions": [],
+      "summary": {
+        "entities": [
+          "ALEXANDER",
+          "AMIRI"
         ],
-        "subject": "AMIRI"
+        "leading": "Subject identification: AMIRI",
+        "leading_code": "SUBJ",
+        "leading_confidence": 1.0,
+        "locked": "Subject identification: AMIRI"
       },
+      "timeline": [
+        {
+          "detail": "0%",
+          "kind": "lead",
+          "seq": 1,
+          "source": null,
+          "t": "09:11:02",
+          "text": "Leading: Subject identification: AMIRI"
+        },
+        {
+          "detail": "PERSON",
+          "kind": "entity",
+          "seq": 2,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Alexander"
+        },
+        {
+          "detail": "alias of",
+          "kind": "link",
+          "seq": 3,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER → AMIRI"
+        },
+        {
+          "detail": "co-mentioned",
+          "kind": "link",
+          "seq": 4,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER — AMIRI"
+        },
+        {
+          "detail": "SUBJ",
+          "kind": "lock",
+          "seq": 5,
+          "source": null,
+          "t": "09:11:05",
+          "text": "LOCKED · Subject identification: AMIRI"
+        },
+        {
+          "detail": "Watchlist subject identified in intercept.",
+          "kind": "alert",
+          "seq": 6,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Watchlist subject identified"
+        }
+      ],
       "ts": "09:11:05",
-      "type": "utterance",
       "utterance_id": "utt-2"
     },
     {
-      "alert": null,
-      "entities": [],
+      "alerts": [],
+      "hypotheses": [
+        {
+          "code": "SUBJ",
+          "confidence": 1.0,
+          "lock_threshold": 1,
+          "missing": [],
+          "name": "Subject identification: AMIRI",
+          "present": [
+            "AMIRI"
+          ],
+          "red_flag": false,
+          "score": 1
+        }
+      ],
+      "new_entities": [],
       "raw_text": "Wasn't easy getting an answer out of him.",
+      "relationships": [
+        [
+          "ALEXANDER",
+          "AMIRI"
+        ]
+      ],
       "segs": [
         {
-          "kind": "plain",
+          "label": null,
           "text": "Wasn't easy getting an answer out of him."
         }
       ],
-      "state": {
-        "active_cell": "cell-3-0",
-        "id_locked": true,
-        "location_locked": false,
-        "locations": [],
-        "rows": [
-          [
-            "ALEXANDER",
-            "AMIRI"
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ]
+      "speaker": null,
+      "suggested_questions": [],
+      "summary": {
+        "entities": [
+          "ALEXANDER",
+          "AMIRI"
         ],
-        "subject": "AMIRI"
+        "leading": "Subject identification: AMIRI",
+        "leading_code": "SUBJ",
+        "leading_confidence": 1.0,
+        "locked": "Subject identification: AMIRI"
       },
+      "timeline": [
+        {
+          "detail": "0%",
+          "kind": "lead",
+          "seq": 1,
+          "source": null,
+          "t": "09:11:02",
+          "text": "Leading: Subject identification: AMIRI"
+        },
+        {
+          "detail": "PERSON",
+          "kind": "entity",
+          "seq": 2,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Alexander"
+        },
+        {
+          "detail": "alias of",
+          "kind": "link",
+          "seq": 3,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER → AMIRI"
+        },
+        {
+          "detail": "co-mentioned",
+          "kind": "link",
+          "seq": 4,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER — AMIRI"
+        },
+        {
+          "detail": "SUBJ",
+          "kind": "lock",
+          "seq": 5,
+          "source": null,
+          "t": "09:11:05",
+          "text": "LOCKED · Subject identification: AMIRI"
+        },
+        {
+          "detail": "Watchlist subject identified in intercept.",
+          "kind": "alert",
+          "seq": 6,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Watchlist subject identified"
+        }
+      ],
       "ts": "09:11:09",
-      "type": "utterance",
       "utterance_id": "utt-3"
     },
     {
-      "alert": null,
-      "entities": [],
+      "alerts": [],
+      "hypotheses": [
+        {
+          "code": "SUBJ",
+          "confidence": 1.0,
+          "lock_threshold": 1,
+          "missing": [],
+          "name": "Subject identification: AMIRI",
+          "present": [
+            "AMIRI"
+          ],
+          "red_flag": false,
+          "score": 1
+        }
+      ],
+      "new_entities": [],
       "raw_text": "He's in a terrible mood.",
+      "relationships": [
+        [
+          "ALEXANDER",
+          "AMIRI"
+        ]
+      ],
       "segs": [
         {
-          "kind": "plain",
+          "label": null,
           "text": "He's in a terrible mood."
         }
       ],
-      "state": {
-        "active_cell": "cell-3-0",
-        "id_locked": true,
-        "location_locked": false,
-        "locations": [],
-        "rows": [
-          [
-            "ALEXANDER",
-            "AMIRI"
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ]
+      "speaker": null,
+      "suggested_questions": [],
+      "summary": {
+        "entities": [
+          "ALEXANDER",
+          "AMIRI"
         ],
-        "subject": "AMIRI"
+        "leading": "Subject identification: AMIRI",
+        "leading_code": "SUBJ",
+        "leading_confidence": 1.0,
+        "locked": "Subject identification: AMIRI"
       },
+      "timeline": [
+        {
+          "detail": "0%",
+          "kind": "lead",
+          "seq": 1,
+          "source": null,
+          "t": "09:11:02",
+          "text": "Leading: Subject identification: AMIRI"
+        },
+        {
+          "detail": "PERSON",
+          "kind": "entity",
+          "seq": 2,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Alexander"
+        },
+        {
+          "detail": "alias of",
+          "kind": "link",
+          "seq": 3,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER → AMIRI"
+        },
+        {
+          "detail": "co-mentioned",
+          "kind": "link",
+          "seq": 4,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER — AMIRI"
+        },
+        {
+          "detail": "SUBJ",
+          "kind": "lock",
+          "seq": 5,
+          "source": null,
+          "t": "09:11:05",
+          "text": "LOCKED · Subject identification: AMIRI"
+        },
+        {
+          "detail": "Watchlist subject identified in intercept.",
+          "kind": "alert",
+          "seq": 6,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Watchlist subject identified"
+        }
+      ],
       "ts": "09:11:13",
-      "type": "utterance",
       "utterance_id": "utt-4"
     },
     {
-      "alert": null,
-      "entities": [
+      "alerts": [],
+      "hypotheses": [
         {
-          "category": "SECTOR",
-          "name": "SECURITY"
-        }
-      ],
-      "raw_text": "You know he prides himself on his security.",
-      "segs": [
-        {
-          "kind": "plain",
-          "text": "You know he prides himself on his "
-        },
-        {
-          "canonical": "SECURITY",
-          "kind": "kw_norm",
-          "text": "security"
-        },
-        {
-          "kind": "plain",
-          "text": "."
-        }
-      ],
-      "state": {
-        "active_cell": "cell-3-0",
-        "id_locked": true,
-        "location_locked": false,
-        "locations": [
-          "UKRAINE"
-        ],
-        "rows": [
-          [
-            "ALEXANDER",
+          "code": "SUBJ",
+          "confidence": 1.0,
+          "lock_threshold": 1,
+          "missing": [],
+          "name": "Subject identification: AMIRI",
+          "present": [
             "AMIRI"
           ],
-          [
-            "SECURITY",
-            "UKRAINE"
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ]
+          "red_flag": false,
+          "score": 1
+        }
+      ],
+      "new_entities": [],
+      "raw_text": "You know he prides himself on his security.",
+      "relationships": [
+        [
+          "ALEXANDER",
+          "AMIRI"
+        ]
+      ],
+      "segs": [
+        {
+          "label": null,
+          "text": "You know he prides himself on his security."
+        }
+      ],
+      "speaker": null,
+      "suggested_questions": [],
+      "summary": {
+        "entities": [
+          "ALEXANDER",
+          "AMIRI"
         ],
-        "subject": "AMIRI"
+        "leading": "Subject identification: AMIRI",
+        "leading_code": "SUBJ",
+        "leading_confidence": 1.0,
+        "locked": "Subject identification: AMIRI"
       },
+      "timeline": [
+        {
+          "detail": "0%",
+          "kind": "lead",
+          "seq": 1,
+          "source": null,
+          "t": "09:11:02",
+          "text": "Leading: Subject identification: AMIRI"
+        },
+        {
+          "detail": "PERSON",
+          "kind": "entity",
+          "seq": 2,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Alexander"
+        },
+        {
+          "detail": "alias of",
+          "kind": "link",
+          "seq": 3,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER → AMIRI"
+        },
+        {
+          "detail": "co-mentioned",
+          "kind": "link",
+          "seq": 4,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER — AMIRI"
+        },
+        {
+          "detail": "SUBJ",
+          "kind": "lock",
+          "seq": 5,
+          "source": null,
+          "t": "09:11:05",
+          "text": "LOCKED · Subject identification: AMIRI"
+        },
+        {
+          "detail": "Watchlist subject identified in intercept.",
+          "kind": "alert",
+          "seq": 6,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Watchlist subject identified"
+        }
+      ],
       "ts": "09:11:17",
-      "type": "utterance",
       "utterance_id": "utt-5"
     },
     {
-      "alert": null,
-      "entities": [
+      "alerts": [],
+      "hypotheses": [
         {
-          "category": "ACTOR",
-          "name": "CAT BURGLAR"
-        }
-      ],
-      "raw_text": "Some cat burglar got in last night, gassed the house.",
-      "segs": [
-        {
-          "kind": "plain",
-          "text": "Some "
-        },
-        {
-          "canonical": "CAT BURGLAR",
-          "kind": "kw_norm",
-          "text": "cat burglar"
-        },
-        {
-          "kind": "plain",
-          "text": " got in last night, gassed the house."
-        }
-      ],
-      "state": {
-        "active_cell": "cell-3-0",
-        "id_locked": true,
-        "location_locked": true,
-        "locations": [
-          "UKRAINE",
-          "BLACK SEA"
-        ],
-        "rows": [
-          [
-            "ALEXANDER",
+          "code": "SUBJ",
+          "confidence": 1.0,
+          "lock_threshold": 1,
+          "missing": [],
+          "name": "Subject identification: AMIRI",
+          "present": [
             "AMIRI"
           ],
-          [
-            "SECURITY",
-            "UKRAINE"
-          ],
-          [
-            "CAT BURGLAR",
-            "BLACK SEA"
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ]
+          "red_flag": false,
+          "score": 1
+        }
+      ],
+      "new_entities": [],
+      "raw_text": "Some cat burglar got in last night, gassed the house.",
+      "relationships": [
+        [
+          "ALEXANDER",
+          "AMIRI"
+        ]
+      ],
+      "segs": [
+        {
+          "label": null,
+          "text": "Some cat burglar got in last night, gassed the house."
+        }
+      ],
+      "speaker": null,
+      "suggested_questions": [],
+      "summary": {
+        "entities": [
+          "ALEXANDER",
+          "AMIRI"
         ],
-        "subject": "AMIRI"
+        "leading": "Subject identification: AMIRI",
+        "leading_code": "SUBJ",
+        "leading_confidence": 1.0,
+        "locked": "Subject identification: AMIRI"
       },
+      "timeline": [
+        {
+          "detail": "0%",
+          "kind": "lead",
+          "seq": 1,
+          "source": null,
+          "t": "09:11:02",
+          "text": "Leading: Subject identification: AMIRI"
+        },
+        {
+          "detail": "PERSON",
+          "kind": "entity",
+          "seq": 2,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Alexander"
+        },
+        {
+          "detail": "alias of",
+          "kind": "link",
+          "seq": 3,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER → AMIRI"
+        },
+        {
+          "detail": "co-mentioned",
+          "kind": "link",
+          "seq": 4,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER — AMIRI"
+        },
+        {
+          "detail": "SUBJ",
+          "kind": "lock",
+          "seq": 5,
+          "source": null,
+          "t": "09:11:05",
+          "text": "LOCKED · Subject identification: AMIRI"
+        },
+        {
+          "detail": "Watchlist subject identified in intercept.",
+          "kind": "alert",
+          "seq": 6,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Watchlist subject identified"
+        }
+      ],
       "ts": "09:11:22",
-      "type": "utterance",
       "utterance_id": "utt-6"
     },
     {
-      "alert": null,
-      "entities": [],
+      "alerts": [],
+      "hypotheses": [
+        {
+          "code": "SUBJ",
+          "confidence": 1.0,
+          "lock_threshold": 1,
+          "missing": [],
+          "name": "Subject identification: AMIRI",
+          "present": [
+            "AMIRI"
+          ],
+          "red_flag": false,
+          "score": 1
+        }
+      ],
+      "new_entities": [],
       "raw_text": "Cleaned out all his cash and jewellery.",
+      "relationships": [
+        [
+          "ALEXANDER",
+          "AMIRI"
+        ]
+      ],
       "segs": [
         {
-          "kind": "plain",
+          "label": null,
           "text": "Cleaned out all his cash and jewellery."
         }
       ],
-      "state": {
-        "active_cell": "cell-3-0",
-        "id_locked": true,
-        "location_locked": true,
-        "locations": [
-          "UKRAINE",
-          "BLACK SEA"
+      "speaker": null,
+      "suggested_questions": [],
+      "summary": {
+        "entities": [
+          "ALEXANDER",
+          "AMIRI"
         ],
-        "rows": [
-          [
-            "ALEXANDER",
-            "AMIRI"
-          ],
-          [
-            "SECURITY",
-            "UKRAINE"
-          ],
-          [
-            "CAT BURGLAR",
-            "BLACK SEA"
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ]
-        ],
-        "subject": "AMIRI"
+        "leading": "Subject identification: AMIRI",
+        "leading_code": "SUBJ",
+        "leading_confidence": 1.0,
+        "locked": "Subject identification: AMIRI"
       },
+      "timeline": [
+        {
+          "detail": "0%",
+          "kind": "lead",
+          "seq": 1,
+          "source": null,
+          "t": "09:11:02",
+          "text": "Leading: Subject identification: AMIRI"
+        },
+        {
+          "detail": "PERSON",
+          "kind": "entity",
+          "seq": 2,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Alexander"
+        },
+        {
+          "detail": "alias of",
+          "kind": "link",
+          "seq": 3,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER → AMIRI"
+        },
+        {
+          "detail": "co-mentioned",
+          "kind": "link",
+          "seq": 4,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER — AMIRI"
+        },
+        {
+          "detail": "SUBJ",
+          "kind": "lock",
+          "seq": 5,
+          "source": null,
+          "t": "09:11:05",
+          "text": "LOCKED · Subject identification: AMIRI"
+        },
+        {
+          "detail": "Watchlist subject identified in intercept.",
+          "kind": "alert",
+          "seq": 6,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Watchlist subject identified"
+        }
+      ],
       "ts": "09:11:27",
-      "type": "utterance",
       "utterance_id": "utt-7"
     },
     {
-      "alert": null,
-      "entities": [
+      "alerts": [],
+      "hypotheses": [
         {
-          "category": "ALIAS",
-          "name": "ALEXANDER"
+          "code": "SUBJ",
+          "confidence": 1.0,
+          "lock_threshold": 1,
+          "missing": [],
+          "name": "Subject identification: AMIRI",
+          "present": [
+            "AMIRI"
+          ],
+          "red_flag": false,
+          "score": 1
         }
       ],
+      "new_entities": [],
       "raw_text": "On leaving, Alexander's personal guards stopped him.",
+      "relationships": [
+        [
+          "ALEXANDER",
+          "AMIRI"
+        ]
+      ],
       "segs": [
         {
-          "kind": "plain",
+          "label": null,
           "text": "On leaving, "
         },
         {
           "canonical": "ALEXANDER",
-          "kind": "kw_norm",
+          "label": "PERSON",
           "text": "Alexander"
         },
         {
-          "kind": "plain",
+          "label": null,
           "text": "'s personal guards stopped him."
         }
       ],
-      "state": {
-        "active_cell": "cell-3-0",
-        "id_locked": true,
-        "location_locked": true,
-        "locations": [
-          "UKRAINE",
-          "BLACK SEA"
+      "speaker": null,
+      "suggested_questions": [],
+      "summary": {
+        "entities": [
+          "ALEXANDER",
+          "AMIRI"
         ],
-        "rows": [
-          [
-            "ALEXANDER",
-            "AMIRI"
-          ],
-          [
-            "SECURITY",
-            "UKRAINE"
-          ],
-          [
-            "CAT BURGLAR",
-            "BLACK SEA"
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ]
-        ],
-        "subject": "AMIRI"
+        "leading": "Subject identification: AMIRI",
+        "leading_code": "SUBJ",
+        "leading_confidence": 1.0,
+        "locked": "Subject identification: AMIRI"
       },
+      "timeline": [
+        {
+          "detail": "0%",
+          "kind": "lead",
+          "seq": 1,
+          "source": null,
+          "t": "09:11:02",
+          "text": "Leading: Subject identification: AMIRI"
+        },
+        {
+          "detail": "PERSON",
+          "kind": "entity",
+          "seq": 2,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Alexander"
+        },
+        {
+          "detail": "alias of",
+          "kind": "link",
+          "seq": 3,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER → AMIRI"
+        },
+        {
+          "detail": "co-mentioned",
+          "kind": "link",
+          "seq": 4,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER — AMIRI"
+        },
+        {
+          "detail": "SUBJ",
+          "kind": "lock",
+          "seq": 5,
+          "source": null,
+          "t": "09:11:05",
+          "text": "LOCKED · Subject identification: AMIRI"
+        },
+        {
+          "detail": "Watchlist subject identified in intercept.",
+          "kind": "alert",
+          "seq": 6,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Watchlist subject identified"
+        }
+      ],
       "ts": "09:11:31",
-      "type": "utterance",
       "utterance_id": "utt-8"
     },
     {
-      "alert": null,
-      "entities": [],
+      "alerts": [],
+      "hypotheses": [
+        {
+          "code": "SUBJ",
+          "confidence": 1.0,
+          "lock_threshold": 1,
+          "missing": [],
+          "name": "Subject identification: AMIRI",
+          "present": [
+            "AMIRI"
+          ],
+          "red_flag": false,
+          "score": 1
+        }
+      ],
+      "new_entities": [],
       "raw_text": "He hospitalized two of his guards.",
+      "relationships": [
+        [
+          "ALEXANDER",
+          "AMIRI"
+        ]
+      ],
       "segs": [
         {
-          "kind": "plain",
+          "label": null,
           "text": "He hospitalized two of his guards."
         }
       ],
-      "state": {
-        "active_cell": "cell-3-0",
-        "id_locked": true,
-        "location_locked": true,
-        "locations": [
-          "UKRAINE",
-          "BLACK SEA"
+      "speaker": null,
+      "suggested_questions": [],
+      "summary": {
+        "entities": [
+          "ALEXANDER",
+          "AMIRI"
         ],
-        "rows": [
-          [
-            "ALEXANDER",
-            "AMIRI"
-          ],
-          [
-            "SECURITY",
-            "UKRAINE"
-          ],
-          [
-            "CAT BURGLAR",
-            "BLACK SEA"
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ]
-        ],
-        "subject": "AMIRI"
+        "leading": "Subject identification: AMIRI",
+        "leading_code": "SUBJ",
+        "leading_confidence": 1.0,
+        "locked": "Subject identification: AMIRI"
       },
+      "timeline": [
+        {
+          "detail": "0%",
+          "kind": "lead",
+          "seq": 1,
+          "source": null,
+          "t": "09:11:02",
+          "text": "Leading: Subject identification: AMIRI"
+        },
+        {
+          "detail": "PERSON",
+          "kind": "entity",
+          "seq": 2,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Alexander"
+        },
+        {
+          "detail": "alias of",
+          "kind": "link",
+          "seq": 3,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER → AMIRI"
+        },
+        {
+          "detail": "co-mentioned",
+          "kind": "link",
+          "seq": 4,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER — AMIRI"
+        },
+        {
+          "detail": "SUBJ",
+          "kind": "lock",
+          "seq": 5,
+          "source": null,
+          "t": "09:11:05",
+          "text": "LOCKED · Subject identification: AMIRI"
+        },
+        {
+          "detail": "Watchlist subject identified in intercept.",
+          "kind": "alert",
+          "seq": 6,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Watchlist subject identified"
+        }
+      ],
       "ts": "09:11:36",
-      "type": "utterance",
       "utterance_id": "utt-9"
     },
     {
-      "alert": null,
-      "entities": [],
+      "alerts": [],
+      "hypotheses": [
+        {
+          "code": "SUBJ",
+          "confidence": 1.0,
+          "lock_threshold": 1,
+          "missing": [],
+          "name": "Subject identification: AMIRI",
+          "present": [
+            "AMIRI"
+          ],
+          "red_flag": false,
+          "score": 1
+        }
+      ],
+      "new_entities": [],
       "raw_text": "One with a broken nose, three cracked ribs.",
+      "relationships": [
+        [
+          "ALEXANDER",
+          "AMIRI"
+        ]
+      ],
       "segs": [
         {
-          "kind": "plain",
+          "label": null,
           "text": "One with a broken nose, three cracked ribs."
         }
       ],
-      "state": {
-        "active_cell": "cell-3-0",
-        "id_locked": true,
-        "location_locked": true,
-        "locations": [
-          "UKRAINE",
-          "BLACK SEA"
+      "speaker": null,
+      "suggested_questions": [],
+      "summary": {
+        "entities": [
+          "ALEXANDER",
+          "AMIRI"
         ],
-        "rows": [
-          [
-            "ALEXANDER",
-            "AMIRI"
-          ],
-          [
-            "SECURITY",
-            "UKRAINE"
-          ],
-          [
-            "CAT BURGLAR",
-            "BLACK SEA"
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ]
-        ],
-        "subject": "AMIRI"
+        "leading": "Subject identification: AMIRI",
+        "leading_code": "SUBJ",
+        "leading_confidence": 1.0,
+        "locked": "Subject identification: AMIRI"
       },
+      "timeline": [
+        {
+          "detail": "0%",
+          "kind": "lead",
+          "seq": 1,
+          "source": null,
+          "t": "09:11:02",
+          "text": "Leading: Subject identification: AMIRI"
+        },
+        {
+          "detail": "PERSON",
+          "kind": "entity",
+          "seq": 2,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Alexander"
+        },
+        {
+          "detail": "alias of",
+          "kind": "link",
+          "seq": 3,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER → AMIRI"
+        },
+        {
+          "detail": "co-mentioned",
+          "kind": "link",
+          "seq": 4,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER — AMIRI"
+        },
+        {
+          "detail": "SUBJ",
+          "kind": "lock",
+          "seq": 5,
+          "source": null,
+          "t": "09:11:05",
+          "text": "LOCKED · Subject identification: AMIRI"
+        },
+        {
+          "detail": "Watchlist subject identified in intercept.",
+          "kind": "alert",
+          "seq": 6,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Watchlist subject identified"
+        }
+      ],
       "ts": "09:11:40",
-      "type": "utterance",
       "utterance_id": "utt-10"
     },
     {
-      "alert": null,
-      "entities": [],
+      "alerts": [],
+      "hypotheses": [
+        {
+          "code": "SUBJ",
+          "confidence": 1.0,
+          "lock_threshold": 1,
+          "missing": [],
+          "name": "Subject identification: AMIRI",
+          "present": [
+            "AMIRI"
+          ],
+          "red_flag": false,
+          "score": 1
+        }
+      ],
+      "new_entities": [],
       "raw_text": "The other one, a bullet in the foot.",
+      "relationships": [
+        [
+          "ALEXANDER",
+          "AMIRI"
+        ]
+      ],
       "segs": [
         {
-          "kind": "plain",
+          "label": null,
           "text": "The other one, a bullet in the foot."
         }
       ],
-      "state": {
-        "active_cell": "cell-3-0",
-        "id_locked": true,
-        "location_locked": true,
-        "locations": [
-          "UKRAINE",
-          "BLACK SEA"
+      "speaker": null,
+      "suggested_questions": [],
+      "summary": {
+        "entities": [
+          "ALEXANDER",
+          "AMIRI"
         ],
-        "rows": [
-          [
-            "ALEXANDER",
-            "AMIRI"
-          ],
-          [
-            "SECURITY",
-            "UKRAINE"
-          ],
-          [
-            "CAT BURGLAR",
-            "BLACK SEA"
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ]
-        ],
-        "subject": "AMIRI"
+        "leading": "Subject identification: AMIRI",
+        "leading_code": "SUBJ",
+        "leading_confidence": 1.0,
+        "locked": "Subject identification: AMIRI"
       },
+      "timeline": [
+        {
+          "detail": "0%",
+          "kind": "lead",
+          "seq": 1,
+          "source": null,
+          "t": "09:11:02",
+          "text": "Leading: Subject identification: AMIRI"
+        },
+        {
+          "detail": "PERSON",
+          "kind": "entity",
+          "seq": 2,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Alexander"
+        },
+        {
+          "detail": "alias of",
+          "kind": "link",
+          "seq": 3,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER → AMIRI"
+        },
+        {
+          "detail": "co-mentioned",
+          "kind": "link",
+          "seq": 4,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER — AMIRI"
+        },
+        {
+          "detail": "SUBJ",
+          "kind": "lock",
+          "seq": 5,
+          "source": null,
+          "t": "09:11:05",
+          "text": "LOCKED · Subject identification: AMIRI"
+        },
+        {
+          "detail": "Watchlist subject identified in intercept.",
+          "kind": "alert",
+          "seq": 6,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Watchlist subject identified"
+        }
+      ],
       "ts": "09:11:45",
-      "type": "utterance",
       "utterance_id": "utt-11"
     },
     {
-      "alert": null,
-      "entities": [],
+      "alerts": [],
+      "hypotheses": [
+        {
+          "code": "SUBJ",
+          "confidence": 1.0,
+          "lock_threshold": 1,
+          "missing": [],
+          "name": "Subject identification: AMIRI",
+          "present": [
+            "AMIRI"
+          ],
+          "red_flag": false,
+          "score": 1
+        }
+      ],
+      "new_entities": [],
       "raw_text": "They're going to carry on. I'm waiting on confirmation.",
+      "relationships": [
+        [
+          "ALEXANDER",
+          "AMIRI"
+        ]
+      ],
       "segs": [
         {
-          "kind": "plain",
+          "label": null,
           "text": "They're going to carry on. I'm waiting on confirmation."
         }
       ],
-      "state": {
-        "active_cell": "cell-3-0",
-        "id_locked": true,
-        "location_locked": true,
-        "locations": [
-          "UKRAINE",
-          "BLACK SEA"
+      "speaker": null,
+      "suggested_questions": [],
+      "summary": {
+        "entities": [
+          "ALEXANDER",
+          "AMIRI"
         ],
-        "rows": [
-          [
-            "ALEXANDER",
-            "AMIRI"
-          ],
-          [
-            "SECURITY",
-            "UKRAINE"
-          ],
-          [
-            "CAT BURGLAR",
-            "BLACK SEA"
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ],
-          [
-            "",
-            ""
-          ]
-        ],
-        "subject": "AMIRI"
+        "leading": "Subject identification: AMIRI",
+        "leading_code": "SUBJ",
+        "leading_confidence": 1.0,
+        "locked": "Subject identification: AMIRI"
       },
+      "timeline": [
+        {
+          "detail": "0%",
+          "kind": "lead",
+          "seq": 1,
+          "source": null,
+          "t": "09:11:02",
+          "text": "Leading: Subject identification: AMIRI"
+        },
+        {
+          "detail": "PERSON",
+          "kind": "entity",
+          "seq": 2,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Alexander"
+        },
+        {
+          "detail": "alias of",
+          "kind": "link",
+          "seq": 3,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER → AMIRI"
+        },
+        {
+          "detail": "co-mentioned",
+          "kind": "link",
+          "seq": 4,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER — AMIRI"
+        },
+        {
+          "detail": "SUBJ",
+          "kind": "lock",
+          "seq": 5,
+          "source": null,
+          "t": "09:11:05",
+          "text": "LOCKED · Subject identification: AMIRI"
+        },
+        {
+          "detail": "Watchlist subject identified in intercept.",
+          "kind": "alert",
+          "seq": 6,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Watchlist subject identified"
+        }
+      ],
       "ts": "09:11:50",
-      "type": "utterance",
       "utterance_id": "utt-12"
     },
     {
-      "alert": {
-        "code": "FLYING FOWL",
-        "confidence": 0.88,
-        "detail": "Target asset relocation detected in live intercept.",
-        "window": "72:00:00"
-      },
-      "entities": [
+      "alerts": [
         {
-          "category": "ASSET",
-          "name": "FLYING FOWL"
-        },
-        {
-          "category": "DEADLINE",
-          "name": "72 HOURS"
+          "message": "Operational code word spoken.",
+          "name": "Code word intercepted",
+          "on_label": "CODEWORD",
+          "urgency": "URGENT",
+          "value": "Flying Fowl"
         }
       ],
+      "hypotheses": [
+        {
+          "code": "SUBJ",
+          "confidence": 1.0,
+          "lock_threshold": 1,
+          "missing": [],
+          "name": "Subject identification: AMIRI",
+          "present": [
+            "AMIRI"
+          ],
+          "red_flag": false,
+          "score": 1
+        }
+      ],
+      "new_entities": [
+        "FLYING FOWL",
+        "72 HOURS"
+      ],
       "raw_text": "They're moving Flying Fowl in 72 hours.",
+      "relationships": [
+        [
+          "ALEXANDER",
+          "AMIRI"
+        ]
+      ],
       "segs": [
         {
-          "kind": "plain",
+          "label": null,
           "text": "They're moving "
         },
         {
           "canonical": "FLYING FOWL",
-          "kind": "kw_lock",
+          "label": "CODEWORD",
           "text": "Flying Fowl"
         },
         {
-          "kind": "plain",
+          "label": null,
           "text": " in "
         },
         {
           "canonical": "72 HOURS",
-          "kind": "kw_norm",
+          "label": "DEADLINE",
           "text": "72 hours"
         },
         {
-          "kind": "plain",
+          "label": null,
           "text": "."
         }
       ],
-      "state": {
-        "active_cell": "cell-3-0",
-        "id_locked": true,
-        "location_locked": true,
-        "locations": [
-          "UKRAINE",
-          "BLACK SEA"
+      "speaker": null,
+      "suggested_questions": [],
+      "summary": {
+        "entities": [
+          "ALEXANDER",
+          "AMIRI",
+          "FLYING FOWL",
+          "72 HOURS"
         ],
-        "rows": [
-          [
-            "ALEXANDER",
-            "AMIRI"
-          ],
-          [
-            "SECURITY",
-            "UKRAINE"
-          ],
-          [
-            "CAT BURGLAR",
-            "BLACK SEA"
-          ],
-          [
-            "FLYING FOWL",
-            ""
-          ],
-          [
-            "72 HOURS",
-            ""
-          ],
-          [
-            "",
-            ""
-          ]
-        ],
-        "subject": "AMIRI"
+        "leading": "Subject identification: AMIRI",
+        "leading_code": "SUBJ",
+        "leading_confidence": 1.0,
+        "locked": "Subject identification: AMIRI"
       },
+      "timeline": [
+        {
+          "detail": "0%",
+          "kind": "lead",
+          "seq": 1,
+          "source": null,
+          "t": "09:11:02",
+          "text": "Leading: Subject identification: AMIRI"
+        },
+        {
+          "detail": "PERSON",
+          "kind": "entity",
+          "seq": 2,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Alexander"
+        },
+        {
+          "detail": "alias of",
+          "kind": "link",
+          "seq": 3,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER → AMIRI"
+        },
+        {
+          "detail": "co-mentioned",
+          "kind": "link",
+          "seq": 4,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER — AMIRI"
+        },
+        {
+          "detail": "SUBJ",
+          "kind": "lock",
+          "seq": 5,
+          "source": null,
+          "t": "09:11:05",
+          "text": "LOCKED · Subject identification: AMIRI"
+        },
+        {
+          "detail": "Watchlist subject identified in intercept.",
+          "kind": "alert",
+          "seq": 6,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Watchlist subject identified"
+        },
+        {
+          "detail": "CODEWORD",
+          "kind": "entity",
+          "seq": 7,
+          "source": "They're moving Flying Fowl in 72 hours.",
+          "t": "09:11:56",
+          "text": "Flying Fowl"
+        },
+        {
+          "detail": "DEADLINE",
+          "kind": "entity",
+          "seq": 8,
+          "source": "They're moving Flying Fowl in 72 hours.",
+          "t": "09:11:56",
+          "text": "72 hours"
+        },
+        {
+          "detail": "Operational code word spoken.",
+          "kind": "alert",
+          "seq": 9,
+          "source": "They're moving Flying Fowl in 72 hours.",
+          "t": "09:11:56",
+          "text": "Code word intercepted: Flying Fowl"
+        }
+      ],
       "ts": "09:11:56",
-      "type": "utterance",
       "utterance_id": "utt-13"
     },
     {
-      "alert": null,
-      "entities": [],
+      "alerts": [],
+      "hypotheses": [
+        {
+          "code": "SUBJ",
+          "confidence": 1.0,
+          "lock_threshold": 1,
+          "missing": [],
+          "name": "Subject identification: AMIRI",
+          "present": [
+            "AMIRI"
+          ],
+          "red_flag": false,
+          "score": 1
+        }
+      ],
+      "new_entities": [],
       "raw_text": "They should be ready.",
+      "relationships": [
+        [
+          "ALEXANDER",
+          "AMIRI"
+        ]
+      ],
       "segs": [
         {
-          "kind": "plain",
+          "label": null,
           "text": "They should be ready."
         }
       ],
-      "state": {
-        "active_cell": "cell-3-0",
-        "id_locked": true,
-        "location_locked": true,
-        "locations": [
-          "UKRAINE",
-          "BLACK SEA"
+      "speaker": null,
+      "suggested_questions": [],
+      "summary": {
+        "entities": [
+          "ALEXANDER",
+          "AMIRI",
+          "FLYING FOWL",
+          "72 HOURS"
         ],
-        "rows": [
-          [
-            "ALEXANDER",
-            "AMIRI"
-          ],
-          [
-            "SECURITY",
-            "UKRAINE"
-          ],
-          [
-            "CAT BURGLAR",
-            "BLACK SEA"
-          ],
-          [
-            "FLYING FOWL",
-            ""
-          ],
-          [
-            "72 HOURS",
-            ""
-          ],
-          [
-            "",
-            ""
-          ]
-        ],
-        "subject": "AMIRI"
+        "leading": "Subject identification: AMIRI",
+        "leading_code": "SUBJ",
+        "leading_confidence": 1.0,
+        "locked": "Subject identification: AMIRI"
       },
+      "timeline": [
+        {
+          "detail": "0%",
+          "kind": "lead",
+          "seq": 1,
+          "source": null,
+          "t": "09:11:02",
+          "text": "Leading: Subject identification: AMIRI"
+        },
+        {
+          "detail": "PERSON",
+          "kind": "entity",
+          "seq": 2,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Alexander"
+        },
+        {
+          "detail": "alias of",
+          "kind": "link",
+          "seq": 3,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER → AMIRI"
+        },
+        {
+          "detail": "co-mentioned",
+          "kind": "link",
+          "seq": 4,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "ALEXANDER — AMIRI"
+        },
+        {
+          "detail": "SUBJ",
+          "kind": "lock",
+          "seq": 5,
+          "source": null,
+          "t": "09:11:05",
+          "text": "LOCKED · Subject identification: AMIRI"
+        },
+        {
+          "detail": "Watchlist subject identified in intercept.",
+          "kind": "alert",
+          "seq": 6,
+          "source": "I just spoke to Alexander.",
+          "t": "09:11:05",
+          "text": "Watchlist subject identified"
+        },
+        {
+          "detail": "CODEWORD",
+          "kind": "entity",
+          "seq": 7,
+          "source": "They're moving Flying Fowl in 72 hours.",
+          "t": "09:11:56",
+          "text": "Flying Fowl"
+        },
+        {
+          "detail": "DEADLINE",
+          "kind": "entity",
+          "seq": 8,
+          "source": "They're moving Flying Fowl in 72 hours.",
+          "t": "09:11:56",
+          "text": "72 hours"
+        },
+        {
+          "detail": "Operational code word spoken.",
+          "kind": "alert",
+          "seq": 9,
+          "source": "They're moving Flying Fowl in 72 hours.",
+          "t": "09:11:56",
+          "text": "Code word intercepted: Flying Fowl"
+        }
+      ],
       "ts": "09:12:01",
-      "type": "utterance",
       "utterance_id": "utt-14"
     }
   ],
-  "settings": {
-    "autolock": true,
-    "diarize": true,
-    "language": "en",
-    "model_label": "faster-whisper · base.en",
-    "redact": false,
-    "vad": true,
-    "vad_threshold": 0.62
-  }
+  "profile": "investigation/intercept"
 }

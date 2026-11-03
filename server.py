@@ -1,23 +1,28 @@
 """
-server.py — FastAPI backend for the Fitini Voice Analyzer.
+server.py — FastAPI backend for Fitini (Path B: canonical fitini_core output).
+
+The investigation engine is the unified `fitini_core.CorrelationEngine`, run over the
+knowledge packs the operator selects in the UI (resolved by `packs.load_domains`). The
+WebSocket streams the engine's canonical `AnalysisResult` per utterance; the front
+consumes it directly (no legacy frame, no adapter).
 
 Endpoints
 ---------
-GET  /                      -> static/index.html (the vanilla FUI)
-POST /api/login             -> { token }
+GET  /                           -> static/index.html (the vanilla front)
+POST /api/login                  -> { token }
 POST /api/logout
-GET  /api/me                -> operator + settings            (auth)
-GET  /api/sessions[?query=] -> archive list                   (auth)
-GET  /api/sessions/{id}     -> session report                 (auth)
-GET  /api/targets/{code}    -> target dossier                 (auth)
-GET  /api/settings          -> current settings               (auth)
-PUT  /api/settings          -> update settings                (auth)
-POST /api/analyze           -> upload + transcribe a file      (auth)
-WS   /ws/intercept?token=   -> live transcription stream       (auth via query token)
+GET  /api/me                     -> operator + settings            (auth)
+GET  /api/domains                -> selectable investigation domains
+GET  /api/sessions[?query=]      -> archive list                   (auth)
+GET  /api/sessions/{id}          -> session report                 (auth)
+GET  /api/targets/{code}         -> target dossier                 (auth)
+GET  /api/settings | PUT         -> settings                       (auth)
+POST /api/analyze                -> upload + transcribe + analyze    (auth)
+WS   /ws/intercept?token=&domains=justice,cti -> live canonical stream
 
-Simulation mode is the default: with only fastapi + uvicorn installed the whole app runs,
-replaying the scripted intercept. Set USE_MIC=1 for live microphone capture (requires the
-optional ML extras in requirements.txt). All model inference runs off the event loop.
+Simulation mode is the default: with only fastapi + uvicorn installed the whole app
+runs, replaying the scripted stream. Set USE_MIC=1 for live microphone capture
+(optional ML extras). All model inference runs off the event loop.
 """
 
 from __future__ import annotations
@@ -26,7 +31,7 @@ import json
 import os
 import tempfile
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import (Depends, FastAPI, File, Header, HTTPException, Query,
                      UploadFile, WebSocket, WebSocketDisconnect)
@@ -35,9 +40,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import db
+import packs
 from audio_transcriber import AudioStreamTranscriber
 from auth import AuthManager
-from intel_engine import TacticalIntelEngine
+from fitini_core import CorrelationEngine
 
 BASE_DIR = os.path.dirname(__file__)
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
@@ -49,7 +55,7 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as fh:
 db.init_db(CONFIG)
 auth_manager = AuthManager(CONFIG)
 
-app = FastAPI(title="Fitini Voice Analyzer")
+app = FastAPI(title="Fitini")
 if os.path.isdir(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
@@ -105,6 +111,12 @@ async def me(_: str = Depends(require_auth)):
     return {"operator_id": auth_manager.operator_id, "settings": db.get_settings()}
 
 
+@app.get("/api/domains")
+async def domains():
+    """The selectable investigation domains (mandatory multi-select in the UI)."""
+    return {"domains": packs.domain_catalog()}
+
+
 @app.get("/api/sessions")
 async def sessions(query: Optional[str] = Query(None), _: str = Depends(require_auth)):
     return {"sessions": db.list_sessions(query)}
@@ -137,67 +149,84 @@ async def update_settings(body: SettingsBody, _: str = Depends(require_auth)):
     return {"settings": db.save_settings(merged)}
 
 
-# ---------------------------- report builder ------------------------------- #
-_ENTITY_COLORS = {
-    "SUBJECT": "#38ef7d", "ALIAS": "#38ef7d", "PLACE": "#38ef7d", "DEADLINE": "#38ef7d",
-    "ASSET": "#d8b24a", "ACTOR": "#d8b24a", "SECTOR": "#78a890",
-}
+# ---------------------------- engine helpers ------------------------------- #
+def _parse_domains(domains_param: Optional[str]) -> List[str]:
+    ids = [d.strip() for d in (domains_param or "").split(",") if d.strip()]
+    return ids or ["justice"]  # the UI always sends a selection; fall back defensively
 
 
-def _build_report(engine: TacticalIntelEngine, duration: str, lines: int) -> Dict[str, Any]:
-    ents = engine.entities()
-    ui_entities = []
-    for e in ents:
-        cls = e["category"]
-        if e["name"] == "ALEXANDER":
-            cls = "ALIAS → AMIRI"
-        ui_entities.append({
-            "name": e["name"], "cls": cls, "conf": f"{e['confidence']:.2f}",
-            "cColor": _ENTITY_COLORS.get(e["category"], "#78a890"),
-        })
+def _engine_for(domains_param: Optional[str]) -> CorrelationEngine:
+    ids = _parse_domains(domains_param)
+    try:
+        profile = packs.load_domains(ids)
+    except Exception:
+        profile = packs.load_domains(["justice"])
+    return CorrelationEngine(profile)
 
-    targets = []
-    if engine.id_locked:
-        targets.append({"code": engine.subject,
-                        "detail": "Subject · ID confirmed · alias ALEXANDER"})
-    for a in engine.alerts():
-        targets.append({"code": a["code"], "detail": "Asset movement · 72h window"})
 
-    threat = "HIGH" if engine.alerts() else ("ELEVATED" if engine.id_locked else "LOW")
-    stats = [
-        {"label": "DURATION", "val": duration, "color": "#b8c4c2"},
-        {"label": "ENTITIES", "val": f"{len(ui_entities):02d}", "color": "#38ef7d"},
-        {"label": "TARGETS LOCKED", "val": f"{len(targets):02d}", "color": "#38ef7d"},
-        {"label": "THREAT LEVEL", "val": threat,
-         "color": "#e2574f" if threat == "HIGH" else "#d8b24a"},
-    ]
-    timeline = [{"t": "LIVE", "e": f"{e['name']} ({e['category']})"} for e in ents[:6]]
-    return {"stats": stats, "entities": ui_entities, "targets": targets, "timeline": timeline}
+def _canonical_report(engine: CorrelationEngine, alerts: List[Dict[str, Any]],
+                      duration: str) -> Dict[str, Any]:
+    """Build a session report straight from the engine's canonical state."""
+    return {
+        "summary": {
+            "locked": engine.locked,
+            "leading": engine.leading,
+            "entities": list(engine.entities.keys()),
+        },
+        "entities": [{"name": k, "category": v["category"], "count": v["count"]}
+                     for k, v in engine.entities.items()],
+        "relationships": [list(r) for r in engine.relationships],
+        "timeline": engine.timeline.export(),
+        "alerts": alerts,
+        "duration": duration,
+        "lines": engine.line,
+    }
+
+
+def _persist_session(engine: CorrelationEngine, report: Dict[str, Any],
+                     channel: str, dur: str) -> str:
+    locked = engine.locked
+    ents = list(engine.entities.keys())
+    subject = locked or (ents[0] if ents else "UNASSIGNED")
+    session_id = f"CH07-{int(time.time()) % 10000:04d}"
+    db.create_session({
+        "id": session_id,
+        "subject": subject,
+        "channel": channel,
+        "date": time.strftime("%d %b %y").upper(),
+        "dur": dur,
+        "status": "LOCKED" if locked else "REVIEW",
+        "statusColor": "#38ef7d" if locked else "#d8b24a",
+        "report": report,
+    })
+    return session_id
 
 
 # ------------------------------- analyze ----------------------------------- #
 @app.post("/api/analyze")
-async def analyze(file: UploadFile = File(...), _: str = Depends(require_auth)):
-    settings = db.get_settings()
-    engine = TacticalIntelEngine(CONFIG, settings)
+async def analyze(file: UploadFile = File(...),
+                  domains: Optional[str] = Query(None),
+                  _: str = Depends(require_auth)):
+    engine = _engine_for(domains)
     transcriber = AudioStreamTranscriber(CONFIG, use_microphone=False)
 
     suffix = os.path.splitext(file.filename or "")[1] or ".wav"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    alerts: List[Dict[str, Any]] = []
     try:
         tmp.write(await file.read())
         tmp.close()
-
         count = 0
         try:
             async for item in transcriber.transcribe_file(tmp.name):
-                engine.analyze_utterance(item["text"], item["ts"])
+                r = engine.analyze_utterance(item["text"], item.get("ts"))
+                alerts += r.get("alerts", [])
                 count += 1
         except Exception:
-            # No Whisper / unsupported file in this environment: fall back to the
-            # scripted intercept so the analyze flow still produces a report (demo mode).
+            # No Whisper / unsupported file here: fall back to the scripted stream.
             for line in CONFIG.get("simulated_intercept", []):
-                engine.analyze_utterance(line["text"], line["ts"])
+                r = engine.analyze_utterance(line["text"], line["ts"])
+                alerts += r.get("alerts", [])
                 count += 1
     finally:
         try:
@@ -205,51 +234,36 @@ async def analyze(file: UploadFile = File(...), _: str = Depends(require_auth)):
         except OSError:
             pass
 
-    session_id = f"UP-{int(time.time()) % 100000:05d}"
-    report = _build_report(engine, duration="—", lines=count)
-    db.create_session({
-        "id": session_id,
-        "subject": engine.subject if engine.id_locked else "UNASSIGNED",
-        "channel": "FILE · UPLOAD",
-        "date": time.strftime("%d %b %y").upper(),
-        "dur": "—", "status": "REVIEW", "statusColor": "#d8b24a",
-        "report": report,
-    })
-    return {"session_id": session_id, "report": report, "lines": count,
+    report = _canonical_report(engine, alerts, duration="—")
+    session_id = _persist_session(engine, report, channel="FILE · UPLOAD", dur="—")
+    return {"session_id": session_id, "report": report, "lines": report["lines"],
             "filename": file.filename}
 
 
 # ------------------------------ websocket ---------------------------------- #
 @app.websocket("/ws/intercept")
-async def websocket_intercept(websocket: WebSocket, token: Optional[str] = Query(None)):
+async def websocket_intercept(websocket: WebSocket,
+                              token: Optional[str] = Query(None),
+                              domains: Optional[str] = Query(None)):
     if not auth_manager.validate(token):
         await websocket.close(code=4401)
         return
     await websocket.accept()
 
-    settings = db.get_settings()
-    engine = TacticalIntelEngine(CONFIG, settings)
+    engine = _engine_for(domains)
     use_mic = os.getenv("USE_MIC", "0") == "1"
     transcriber = AudioStreamTranscriber(CONFIG, use_microphone=use_mic)
+    alerts: List[Dict[str, Any]] = []
 
     try:
         async for utt in transcriber.stream_transcriptions():
             payload = engine.analyze_utterance(utt["text"], utt.get("ts"))
+            payload["type"] = "utterance"
+            alerts += payload.get("alerts", [])
             await websocket.send_json(payload)
 
-        # Session finished: persist a report and tell the client.
-        report = _build_report(engine, duration="00:59", lines=engine.line_counter)
-        session_id = f"CH07-{int(time.time()) % 10000:04d}"
-        db.create_session({
-            "id": session_id,
-            "subject": engine.subject if engine.id_locked else "UNASSIGNED",
-            "channel": "VOICE · LIVE",
-            "date": time.strftime("%d %b %y").upper(),
-            "dur": "00:59",
-            "status": "LOCKED" if engine.alerts() else "REVIEW",
-            "statusColor": "#38ef7d" if engine.alerts() else "#d8b24a",
-            "report": report,
-        })
+        report = _canonical_report(engine, alerts, duration="00:59")
+        session_id = _persist_session(engine, report, channel="VOICE · LIVE", dur="00:59")
         await websocket.send_json({"type": "complete", "session_id": session_id,
                                    "report": report})
     except WebSocketDisconnect:

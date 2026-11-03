@@ -1,655 +1,536 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fitini — Voice Analyzer</title>
-<script src="/static/vendor/leader-line.min.js"></script>
+<title>Fitini — Poste d'analyse</title>
 <style>
 :root{
-  --fit-bg:#161819;--fit-surface:#1b1e1f;--fit-surface-2:#202425;--fit-surface-3:#0b0d0d;--fit-titlebar:#23282a;
-  --fit-text:#b8c4c2;--fit-text-dim:#aeb9b7;--fit-text-muted:#78827f;--fit-text-faint:#4e5856;--fit-ink-on-green:#0b1a10;
-  --fit-green:#38ef7d;--fit-green-solid:#44d66c;--fit-green-dim:#2a9a52;--fit-green-glow:rgba(56,239,125,.28);
-  --fit-sage:#78a890;--fit-sage-dim:#4f6b5e;--fit-scanning:#d8b24a;--fit-alert:#e2574f;--fit-pending:#78827f;
-  --fit-border:#2c3233;--fit-border-strong:#3a4243;--fit-grid-line:#242a2b;
-  --mono:'Courier New',Consolas,'SF Mono',Menlo,Monaco,monospace;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --fit-green:#38ef7d; --fit-green-solid:#5cff98; --fit-green-dim:#1f7a46; --fit-green-glow:rgba(56,239,125,.35);
+  --fit-ink-on-green:#07140c; --fit-sage:#78a890; --fit-scanning:#d8b24a; --fit-alert:#e2574f;
+  --fit-bg:#0b0d0d; --fit-surface:#111516; --fit-surface-2:#151a1b; --fit-surface-3:#0e1213;
+  --fit-titlebar:#141a1b; --fit-border:#242b2c; --fit-border-strong:#394244; --fit-grid-line:#1b2122;
+  --fit-text:#d6e2df; --fit-text-dim:#aebbb8; --fit-text-muted:#7d8c89; --fit-text-faint:#55615f;
+  --cat-person:#38ef7d; --cat-place:#78a890; --cat-org:#d8b24a; --cat-threat:#e2574f; --cat-date:#5fcede; --cat-asset:#bfa6ea;
+  --ease:cubic-bezier(.22,.61,.36,1);
 }
 *{box-sizing:border-box}
-html,body{margin:0;background:#0b0d0d;font-family:var(--mono);-webkit-font-smoothing:antialiased;height:100%}
+html,body{margin:0;height:100%;background:var(--fit-bg);color:var(--fit-text);font-family:var(--mono);-webkit-font-smoothing:antialiased}
+#app{height:100%}
 a{color:var(--fit-green);text-decoration:none}
 button{font-family:var(--mono)}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:#111314}::-webkit-scrollbar-thumb{background:#2c3233}
 input{font-family:var(--mono)}
-::-webkit-scrollbar{width:8px;height:8px}
-::-webkit-scrollbar-track{background:#111314}
-::-webkit-scrollbar-thumb{background:#2c3233}
-::-webkit-scrollbar-thumb:hover{background:#3a4243}
 @keyframes fit-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
 @keyframes fit-stream{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-@keyframes fit-scan{from{transform:translateY(-100%)}to{transform:translateY(100%)}}
+@keyframes fit-scan{from{transform:translateY(-100%)}to{transform:translateY(120%)}}
 @keyframes fit-pulse{0%,100%{opacity:.55}50%{opacity:1}}
-@keyframes fit-dash{to{stroke-dashoffset:-16}}
-@keyframes fit-flag-pulse{0%{box-shadow:0 0 2px var(--fit-green-glow)}35%{box-shadow:0 0 18px var(--fit-green-glow)}100%{box-shadow:0 0 8px var(--fit-green-glow)}}
-.kw-flash{animation:fit-flag-pulse .5s ease-out}
+@keyframes fit-flash{0%{box-shadow:0 0 0 rgba(56,239,125,0)}35%{box-shadow:0 0 18px var(--fit-green-glow)}100%{box-shadow:0 0 6px var(--fit-green-glow)}}
+.kw-flash{animation:fit-flash .5s ease-out}
 .cell-hot{box-shadow:0 0 14px var(--fit-green-glow)!important;border-color:var(--fit-green)!important;transition:box-shadow .2s,border-color .2s}
-.stream{animation:fit-stream .3s ease}
+.ent{border-bottom:2px solid currentColor;padding:0 1px;font-weight:700;cursor:pointer;transition:opacity .15s}
+.ent.dim{opacity:.28}
+.win{border:1px solid var(--fit-border);background:var(--fit-surface)}
+.win-h{background:var(--fit-titlebar);border-bottom:1px solid var(--fit-border);padding:7px 12px;font-size:12px;letter-spacing:.04em}
+.win-r{height:2px;background:linear-gradient(90deg,var(--fit-green),transparent)}
+.primary{font-size:12px;letter-spacing:.14em;color:var(--fit-ink-on-green);background:var(--fit-green);border:none;padding:11px 20px;cursor:pointer;box-shadow:0 0 10px var(--fit-green-glow)}
+.ghost{font-size:11px;letter-spacing:.12em;color:var(--fit-sage);background:transparent;border:1px solid var(--fit-border);padding:7px 12px;cursor:pointer}
+.cellbox{border:1px solid var(--fit-border);background:var(--fit-surface-3);min-height:42px;display:flex;align-items:center;justify-content:center;font-size:12px;letter-spacing:.06em;color:var(--fit-green)}
+.cellbox.empty{color:var(--fit-text-faint)}
 </style>
 </head>
 <body>
-<div id="root" style="position:relative;height:100vh;min-height:720px;background:var(--fit-bg);color:var(--fit-text);font-family:var(--mono);overflow:hidden"></div>
-
+<div id="app"></div>
 <script>
 "use strict";
-const C={green:"#38ef7d",sage:"#78a890",muted:"#78827f",alert:"#e2574f",scan:"#d8b24a",faint:"#4e5856",text:"#b8c4c2"};
-const NAV=[
-  {id:"standby",num:"01",label:"STANDBY"},
-  {id:"intercept",num:"02",label:"INTERCEPT",live:true},
-  {id:"report",num:"03",label:"REPORT"},
-  {id:"dossier",num:"04",label:"DOSSIER"},
-  {id:"archive",num:"05",label:"ARCHIVE"},
-  {id:"upload",num:"06",label:"ANALYZE"},
-  {id:"settings",num:"07",label:"CONFIG"},
+const $=(id)=>document.getElementById(id);
+const esc=(s)=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const LABEL_CAT={PERSON:"person",SUBJECT:"person",ALIAS:"person",LOCATION:"place",PLACE:"place",COORD:"place",
+  ORG:"org",SECTOR:"org",CODEWORD:"threat",ACTOR:"threat",THREAT:"threat",CVE:"threat",APT:"threat",MALWARE:"threat",
+  DEADLINE:"date",PHONE:"date",DATE:"date",ASSET:"asset",DRUG:"asset",ADR:"threat",GENE:"person"};
+const FLAG_LABELS=new Set(["CODEWORD","ASSET","DEADLINE","COORD","PHONE","CVE","APT","MALWARE","ADR"]);
+const catOf=(label)=>LABEL_CAT[(label||"").toUpperCase()]||"org";
+const catColor=(cat)=>`var(--cat-${cat})`;
+
+const DOMAINS=[
+  {id:"justice",name:"Justice / e-Discovery",desc:"Pièces, correspondances, dépositions."},
+  {id:"osint",name:"Réseaux sociaux (OSINT)",desc:"Comptes, pseudonymes, lieux, résolution d'alias."},
+  {id:"cti",name:"Cybersécurité (CTI)",desc:"Acteurs, IOC, infrastructures, campagnes."},
+  {id:"pharma",name:"Biomédical / Pharmacovigilance",desc:"Substances, effets indésirables, signaux."},
+];
+const CMDS=[
+  {cmd:"chrono",desc:"chronologie des faits"},
+  {cmd:"graphe",desc:"graphe de relations"},
+  {cmd:"flags",desc:"anomalies détectées"},
+  {cmd:"cross A B",desc:"croiser deux entités"},
+  {cmd:"link <entité>",desc:"relations d'une entité"},
+  {cmd:"find <mot>",desc:"recherche plein-texte"},
+  {cmd:"help · clear",desc:"guide · effacer"},
 ];
 
-const state={
-  token:null, operatorId:"OP-7781 // VESPER", loginError:"",
-  screen:"login", device:"desktop",
+const S={
+  screen:"selection", token:localStorage.getItem("fitini_tok")||null, opId:"OP-7781 // VESPER",
+  domains:new Set(), clock:"--:--:-- UTC",
+  // flux / engine state
   started:false, done:false, streaming:false,
-  lines:[], pending:[], anim:null, rows:Array.from({length:6},()=>["",""]),
-  subject:"SEARCHING...", locations:[], idLocked:false, locationLocked:false, link:null, activeCanon:null,
-  alertOpen:false, alert:null,
-  sessions:[], query:"",
-  report:null, reportId:null,
-  dossier:null,
-  uploadState:"idle", uploadPct:0, uploadFilename:"",
-  settings:{vad:true,diarize:true,redact:false,autolock:true,language:"en",model_label:"faster-whisper · base.en",vad_threshold:0.62},
-  clock:"--:--:-- UTC",
+  lines:[], frames:[], detectedOrder:[], rows:emptyRows(), cellOf:{}, pairOf:{},
+  summary:{locked:null,leading:null,entities:[]}, relationships:[], hypotheses:[], timeline:[], flags:[],
+  hotCanon:null, arrow:null, busyFlags:false, flagQueue:[],
+  // report interactions
+  results:[], filterEnt:null, pulse:null,
+  // terminal
+  termOpen:false, termLines:[{t:"Fitini · terminal déterministe — tapez `help`.",c:"var(--fit-sage)"}],
+  // modals / misc
+  crossOpen:false, crossA:"", crossB:"", query:"", archive:[], settings:{vad:true,diarize:true,redact:false,autolock:true},
 };
-let ws=null, revealTimer=null, leader=null;
-const root=document.getElementById("root");
-const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let ws=null;
+function emptyRows(){return [["",""],["",""],["",""],["",""],["",""],["",""]];}
 
-/* ---------------- API ---------------- */
+/* ---------------- api ---------------- */
 async function api(path,opts={}){
-  const headers=Object.assign({},opts.headers||{});
-  if(state.token) headers["Authorization"]="Bearer "+state.token;
-  if(opts.json){headers["Content-Type"]="application/json";opts.body=JSON.stringify(opts.json);delete opts.json;}
-  const res=await fetch(path,Object.assign({},opts,{headers}));
-  if(res.status===401){state.token=null;state.screen="login";render();throw new Error("unauthorized");}
-  if(!res.ok) throw new Error("HTTP "+res.status);
-  return res.status===204?null:res.json();
+  const h=Object.assign({"Content-Type":"application/json"},opts.headers||{});
+  if(S.token) h["Authorization"]="Bearer "+S.token;
+  const r=await fetch(path,Object.assign({},opts,{headers:h,body:opts.json?JSON.stringify(opts.json):opts.body}));
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  const ct=r.headers.get("content-type")||""; return ct.includes("json")?r.json():r.text();
 }
 
 /* ---------------- clock ---------------- */
-setInterval(()=>{
-  const d=new Date();
-  state.clock=d.toISOString().substr(11,8)+" UTC";
-  const clk=document.getElementById("clock"); if(clk) clk.textContent=state.clock;
-},1000);
+setInterval(()=>{ const d=new Date(),p=n=>String(n).padStart(2,"0");
+  S.clock=p(d.getUTCHours())+":"+p(d.getUTCMinutes())+":"+p(d.getUTCSeconds())+" UTC";
+  const c=$("clock"); if(c)c.textContent=S.clock; },1000);
 
-/* ---------------- navigation ---------------- */
-async function goto(screen){
-  state.screen=screen;
-  try{
-    if(screen==="standby"||screen==="archive"){
-      const r=await api("/api/sessions"); state.sessions=r.sessions;
-    }else if(screen==="dossier"){
-      state.dossier=await api("/api/targets/AMIRI");
-    }else if(screen==="settings"){
-      const r=await api("/api/settings"); state.settings=Object.assign({},state.settings,r.settings);
-    }
-  }catch(e){/* handled by api() */}
-  render();
+/* ================= RENDER ================= */
+function render(){
+  const app=$("app");
+  if(S.screen==="selection"){ app.innerHTML=viewSelection(); return; }
+  app.innerHTML=viewShell(viewContent());
+  if(S.screen==="intercept") afterInterceptMount();
 }
 
-async function openSession(id){
-  try{
-    const s=await api("/api/sessions/"+encodeURIComponent(id));
-    state.report=s.report; state.reportId=s.id; state.screen="report"; render();
-  }catch(e){}
+/* ---- selection (mandatory entry) ---- */
+function viewSelection(){
+  const cards=DOMAINS.map(d=>{
+    const on=S.domains.has(d.id);
+    return `<button onclick="fitini.toggleDomain('${d.id}')" style="text-align:left;display:flex;gap:12px;align-items:flex-start;padding:16px;border:1px solid ${on?"var(--fit-green)":"var(--fit-border-strong)"};background:${on?"rgba(56,239,125,.07)":"var(--fit-surface)"};cursor:pointer;width:100%">
+      <span style="flex:none;margin-top:2px;width:16px;height:16px;border:1px solid ${on?"var(--fit-green)":"var(--fit-border-strong)"};background:${on?"radial-gradient(circle,var(--fit-green) 0 42%,transparent 46%)":"transparent"};box-shadow:${on?"0 0 8px var(--fit-green-glow)":"none"}"></span>
+      <span><span style="display:block;font-size:13px;letter-spacing:.06em;color:var(--fit-text);font-weight:700">${esc(d.name)}</span>
+      <span style="display:block;font-size:11px;color:var(--fit-text-muted);line-height:1.5;margin-top:4px">${esc(d.desc)}</span></span></button>`;
+  }).join("");
+  const n=S.domains.size;
+  return `<div style="min-height:100%;display:flex;align-items:center;justify-content:center;padding:40px 16px">
+    <div style="width:100%;max-width:560px">
+      <div style="font-size:20px;letter-spacing:.34em;color:var(--fit-green);text-shadow:0 0 10px var(--fit-green-glow);font-weight:700;margin-bottom:6px">FITINI</div>
+      <div style="font-size:11px;letter-spacing:.2em;color:var(--fit-sage);margin-bottom:22px">POSTE D'ANALYSE · HORS-LIGNE · DÉTERMINISTE</div>
+      <div style="font-size:12px;letter-spacing:.14em;color:var(--fit-text-faint);margin-bottom:12px">SÉLECTIONNER LE(S) DOMAINE(S) D'INVESTIGATION</div>
+      <div style="display:flex;flex-direction:column;gap:10px">${cards}</div>
+      <div style="display:flex;align-items:center;gap:14px;margin-top:22px">
+        <button onclick="fitini.enter()" ${n?"":"disabled"} style="${n?"":"opacity:.4;cursor:not-allowed;"}font-size:12px;letter-spacing:.14em;color:var(--fit-ink-on-green);background:var(--fit-green);border:none;padding:12px 22px;cursor:pointer;box-shadow:0 0 10px var(--fit-green-glow)">DÉMARRER L'ANALYSE →</button>
+        <span style="font-size:11px;color:var(--fit-text-muted)">${n} domaine(s) · le moteur se positionne sur la sélection</span>
+      </div>
+    </div></div>`;
 }
 
-/* ---------------- auth ---------------- */
-async function doLogin(){
-  const op=document.getElementById("opId").value;
-  const pass=document.getElementById("pass").value;
-  try{
-    const r=await api("/api/login",{method:"POST",json:{operator_id:op,passphrase:pass}});
-    state.token=r.token; state.operatorId=r.operator_id||op; state.loginError="";
-    try{const me=await api("/api/me"); state.settings=Object.assign({},state.settings,me.settings);}catch(e){}
-    await goto("standby");
-  }catch(e){
-    state.loginError="ACCESS DENIED · CHECK CREDENTIALS"; render();
-  }
-}
-function logout(){
-  if(ws){try{ws.close();}catch(e){}ws=null;}
-  api("/api/logout",{method:"POST"}).catch(()=>{});
-  state.token=null; state.screen="login"; render();
+/* ---- shell: top bar + nav + content + terminal ---- */
+function viewShell(content){
+  const navItems=[["intercept","01 INTERCEPT"],["report","02 REPORT"],["dossier","03 DOSSIER"],["archive","04 ARCHIVE"],["analyze","05 ANALYZE"],["config","06 CONFIG"]];
+  const nav=navItems.map(([k,l])=>{const a=S.screen===k;
+    return `<button onclick="fitini.go('${k}')" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:11px 18px;border:none;border-left:2px solid ${a?"var(--fit-green)":"transparent"};background:${a?"rgba(56,239,125,.07)":"transparent"};color:${a?"var(--fit-green)":"var(--fit-text)"};font-size:12px;letter-spacing:.14em;cursor:pointer">${esc(l)}${(k==="intercept"&&S.started&&!S.done)?' <span style="margin-left:auto;color:var(--fit-green)">●</span>':""}</button>`;
+  }).join("");
+  const sel=[...S.domains].join(" · ").toUpperCase();
+  return `<div style="display:grid;grid-template-rows:auto 1fr;height:100%">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:9px 20px;border-bottom:1px solid var(--fit-border);background:var(--fit-surface-3);flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:16px">
+        <span style="font-size:16px;letter-spacing:.34em;color:var(--fit-green);text-shadow:0 0 10px var(--fit-green-glow);font-weight:700">FITINI</span>
+        <span style="font-size:10px;letter-spacing:.2em;color:var(--fit-sage)">POSTE D'ANALYSE · RESTRICTED · CH.07</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span id="clock" style="font-size:11px;color:var(--fit-text-muted);letter-spacing:.1em">${esc(S.clock)}</span>
+        <span style="font-size:10px;letter-spacing:.12em;color:var(--fit-sage);border:1px solid var(--fit-green-dim);padding:6px 10px">⌗ ${esc(sel||"—")}</span>
+        <button onclick="fitini.toggleTerm()" style="font-size:10px;letter-spacing:.12em;color:${S.termOpen?"var(--fit-ink-on-green)":"var(--fit-green)"};background:${S.termOpen?"var(--fit-green)":"transparent"};border:1px solid var(--fit-green-dim);padding:6px 10px;cursor:pointer">▌ TERMINAL</button>
+        <button onclick="fitini.lock()" style="font-size:10px;letter-spacing:.12em;color:var(--fit-text-muted);background:transparent;border:1px solid var(--fit-border);padding:6px 10px;cursor:pointer">⏻ VERROU</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:auto 1fr;min-height:0">
+      <nav style="width:208px;border-right:1px solid var(--fit-border);background:var(--fit-surface-3);display:flex;flex-direction:column;padding:16px 0;min-height:0">
+        <div style="font-size:10px;letter-spacing:.24em;color:var(--fit-text-faint);padding:0 18px 12px">NAVIGATION</div>
+        ${nav}
+        <div style="margin-top:auto;padding:14px 18px;border-top:1px solid var(--fit-border);font-size:10px;letter-spacing:.1em;color:var(--fit-text-faint);line-height:1.7">OPÉRATEUR<br><span style="color:var(--fit-sage)">${esc(S.opId)}</span><br>HORS-LIGNE · DÉTERMINISTE</div>
+      </nav>
+      <main style="min-height:0;min-width:0;overflow:auto;position:relative">${content}</main>
+    </div>
+    ${viewTerminal()}
+    ${S.crossOpen?viewCross():""}
+  </div>`;
 }
 
-/* ---------------- live intercept (WebSocket) ---------------- */
-function startIntercept(){
-  resetIntercept();
-  state.started=true; state.streaming=true; render();
-  const proto=location.protocol==="https:"?"wss:":"ws:";
-  const url=`${proto}//${location.host}/ws/intercept?token=${encodeURIComponent(state.token||"")}`;
-  ws=new WebSocket(url);
-  ws.onmessage=ev=>{
-    const msg=JSON.parse(ev.data);
-    if(msg.type==="utterance") onUtterance(msg);
-    else if(msg.type==="complete"){state.done=true;state.streaming=false;state.report=msg.report;state.reportId=msg.session_id;if(!state.anim&&state.pending.length===0)render();}
-    else if(msg.type==="error"){state.streaming=false;if(!state.anim)render();}
-  };
-  ws.onclose=()=>{state.streaming=false;render();};
-  ws.onerror=()=>{state.streaming=false;};
-}
-function resetIntercept(){
-  if(ws){try{ws.close();}catch(e){}ws=null;}
-  if(revealTimer){clearInterval(revealTimer);revealTimer=null;}
-  removeLeader();
-  state.started=false;state.done=false;state.streaming=false;
-  state.lines=[];state.pending=[];state.anim=null;
-  state.rows=Array.from({length:6},()=>["",""]);state.subject="SEARCHING...";
-  state.locations=[];state.idLocked=false;state.locationLocked=false;state.link=null;state.activeCanon=null;
-  state.alertOpen=false;state.alert=null;state.flagQueue=[];state.flagBusy=false;state.hotCanon=null;
-}
-// An utterance arrives -> queue it; the scan types it out word by word.
-function onUtterance(msg){
-  state.pending.push(msg);
-  if(!state.anim) startReveal();
-}
-function startReveal(){
-  if(revealTimer){clearInterval(revealTimer);revealTimer=null;}
-  const msg=state.pending.shift();
-  if(!msg){
-    // Nothing left to type; if the session is done, surface the report state.
-    if(state.done) render();
-    return;
+function viewContent(){
+  switch(S.screen){
+    case "intercept": return viewIntercept();
+    case "report": return viewReport();
+    case "dossier": return viewDossier();
+    case "archive": return viewArchive();
+    case "analyze": return viewAnalyze();
+    case "config": return viewConfig();
+    default: return "";
   }
-  // Pre-compute each segment's character span within the line.
-  let off=0;
-  const spans=msg.segs.map(s=>{const o={start:off,end:off+s.text.length,seg:s,act:false};off+=s.text.length;return o;});
-  state.anim={ts:msg.ts,segs:msg.segs,spans,reveal:0,len:off,state:msg.state,alert:msg.alert};
-  renderTranscript();
-  revealTimer=setInterval(stepReveal,28);
 }
-function stepReveal(){
-  const a=state.anim; if(!a){clearInterval(revealTimer);revealTimer=null;return;}
-  a.reveal+=2+state.pending.length*3;                 // scan speeds up when lines queue up
-  const newFlags=[];
-  for(const sp of a.spans){
-    if(sp.seg.kind!=="plain" && !sp.act && a.reveal>=sp.end){
-      sp.act=true;                                     // scan just finished this keyword -> flag it
-      const canon=sp.seg.canonical, st=a.state;
-      for(let r=0;r<6;r++){ if(st.rows[r][0]===canon){ state.rows[r][0]=st.rows[r][0]; state.rows[r][1]=st.rows[r][1]; } }
-      if(sp.seg.kind==="kw_lock"){
-        a.lockAlert=a.alert||{code:canon,detail:"Target asset relocation detected in live intercept.",confidence:0.9,window:"72:00:00"};
-      }
-      newFlags.push(canon);
-    }
-  }
-  const lineDone=a.reveal>=a.len;
-  if(newFlags.length){
-    clearInterval(revealTimer);revealTimer=null;         // pause the scan while flags fire
-    a.pendingFinish=lineDone;
-    updateIntercept();                                   // light the keyword(s) + fill the matrix cells once
-    for(const c of newFlags) state.flagQueue.push(c);
-    pumpFlags();                                         // animate them one at a time
-    return;
-  }
-  if(lineDone){ finishLine(); return; }
-  renderTranscript();
+
+/* ---- INTERCEPT (flux) ---- */
+function viewIntercept(){
+  return `<div id="ingest" style="position:relative;min-height:100%;padding:22px 28px">
+    <svg id="arrow-layer" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:30;overflow:visible"></svg>
+    <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:0">
+      <div id="transcol" style="padding-right:28px;border-right:1px solid var(--fit-border);display:flex;flex-direction:column;gap:11px;min-height:0">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:11px;letter-spacing:.2em;color:var(--fit-sage)">TRANSCRIPTION EN DIRECT · CH.07</span>
+          <span id="lc" style="font-size:10px;color:var(--fit-text-faint)"></span>
+        </div>
+        <div id="transcript" style="display:flex;flex-direction:column;gap:11px"></div>
+        <div id="flux-cta"></div>
+      </div>
+      <div style="padding-left:24px;display:flex;flex-direction:column;gap:16px">
+        <div class="win"><div class="win-h">Matrice de corrélation</div><div class="win-r"></div>
+          <div id="matrix" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:12px"></div></div>
+        <div class="win"><div class="win-h">Résumé</div><div class="win-r"></div>
+          <div id="summary" style="padding:13px 16px;display:flex;flex-direction:column;gap:9px;font-size:13px"></div></div>
+        <div class="win"><div class="win-h">Analyseur</div><div class="win-r"></div>
+          <div id="analyzer" style="padding:13px 16px;display:flex;justify-content:space-between;align-items:center"></div></div>
+      </div>
+    </div></div>`;
 }
-function finishLine(){
-  const a=state.anim; if(!a) return;
-  if(revealTimer){clearInterval(revealTimer);revealTimer=null;}
-  state.lines.push({ts:a.ts,segs:a.segs});
-  const st=a.state;                                      // apply this utterance's cumulative state
-  state.rows=st.rows;state.subject=st.subject;state.idLocked=st.id_locked;
-  state.locations=st.locations;state.locationLocked=st.location_locked;
-  if(a.lockAlert){ state.alert=a.lockAlert; state.alertOpen=true; }   // pop the threat only after its arrow has been seen
-  state.anim=null;
-  updateIntercept();
-  startReveal();                                         // type the next queued line
+function afterInterceptMount(){
+  renderMatrix(); renderSummary(); renderAnalyzer(); renderTranscript(); renderFluxCta();
+  // redraw existing lines (e.g., when returning to screen)
+}
+function renderFluxCta(){
+  const el=$("flux-cta"); if(!el)return;
+  if(!S.started){ el.innerHTML=`<div style="margin:30px auto;text-align:center"><div style="font-size:10px;letter-spacing:.28em;color:var(--fit-sage);margin-bottom:16px">EN ATTENTE DU SIGNAL</div><button class="primary" onclick="fitini.startFlux()">▶ LANCER LE FLUX</button></div>`; }
+  else if(S.streaming){ el.innerHTML=`<div style="color:var(--fit-sage);font-size:15px">▌<span style="animation:fit-blink 1s infinite"> écoute…</span></div>`; }
+  else el.innerHTML="";
 }
 function renderTranscript(){
-  const tp=document.getElementById("transcript");
-  if(!tp){render();return;}
-  tp.innerHTML=transcriptInner();
-  tp.scrollTop=tp.scrollHeight;
+  const el=$("transcript"); if(!el)return;
+  el.innerHTML=S.lines.map(ln=>lineHtml(ln)).join("");
+  const lc=$("lc"); if(lc)lc.textContent=S.lines.length+(S.totalLines?("/"+S.totalLines):"");
+  el.scrollTop=el.scrollHeight;
 }
-/* ----- dynamic flag connector: one arrow at a time -----
-   Each flagged keyword lights up, an arrow is drawn to its matrix cell, held
-   briefly, then faded out before the next flagged word fires. The scan is paused
-   during the sequence so the connector's anchors stay valid. */
-const FLAG_HOLD=600, FLAG_FADE=260;
-function removeLeader(){ if(leader){ try{leader.remove();}catch(e){} leader=null; } }
-function cellForCanon(canon){
-  for(let r=0;r<6;r++){ if(state.rows[r][0]===canon) return document.getElementById(`cell-${r}-0`); }
-  return null;
-}
-// Drain the flag queue sequentially; resume the scan once it is empty.
-function pumpFlags(){
-  if(state.flagBusy) return;
-  if(state.flagQueue.length===0){ afterFlags(); return; }
-  const canon=state.flagQueue.shift();
-  state.flagBusy=true; state.activeCanon=canon;
-  flashArrow(canon,()=>{ state.flagBusy=false; state.activeCanon=null; pumpFlags(); });
-}
-function afterFlags(){
-  const a=state.anim;
-  if(!a){ if(state.done) render(); return; }
-  if(a.pendingFinish){ finishLine(); }
-  else { revealTimer=setInterval(stepReveal,28); }       // keep typing the rest of the line
-}
-// Appear -> hold -> fade for a single flagged keyword.
-// Move the green focus frame to a word's cell; it hops forward and stays on the latest.
-function setHotCell(canon){
-  state.hotCanon=canon;
-  document.querySelectorAll(".cell-hot").forEach(el=>el.classList.remove("cell-hot"));
-  const c=cellForCanon(canon); if(c) c.classList.add("cell-hot");
-}
-function flashArrow(canon,done){
-  setHotCell(canon);                                   // frame travels to this word's cell as it appears
-  requestAnimationFrame(()=>{
-    removeLeader();
-    const cell=cellForCanon(canon);
-    const spans=document.querySelectorAll(`#transcript [data-canon="${canon.replace(/"/g,"")}"]`);
-    const m=spans.length?spans[spans.length-1]:null;
-    if(m) m.classList.add("kw-flash");
-    if(typeof LeaderLine==="undefined"||!cell||!m){ setTimeout(done,200); return; }
-    try{
-      leader=new LeaderLine(m,cell,{
-        color:"rgba(120,168,144,0.95)", size:2, path:"straight",
-        startSocket:"right", endSocket:"left", endPlug:"arrow3", endPlugSize:1.6,
-        dash:{animation:true}
-      });
-      leader.hide("none");
-      leader.show("draw",{duration:220});
-      state.link=true;
-    }catch(e){ setTimeout(done,200); return; }
-    setTimeout(()=>{
-      try{ leader.hide("fade",{duration:FLAG_FADE}); }catch(e){}
-      setTimeout(()=>{ removeLeader(); state.link=false; done(); }, FLAG_FADE+40);   // frame stays on the cell
-    }, FLAG_HOLD);
-  });
-}
-// Keep the line anchored when the transcript scrolls or the window resizes.
-window.addEventListener("resize",()=>{ if(leader) try{leader.position();}catch(e){} });
-document.addEventListener("scroll",()=>{ if(leader) try{leader.position();}catch(e){} },true);
-
-/* ---------------- alert / threat ---------------- */
-function simThreat(){
-  state.alert={code:"FLYING FOWL",detail:"Target asset relocation detected in live intercept.",confidence:0.91,window:"72:00:00"};
-  state.alertOpen=true; render();
-}
-function closeAlert(){state.alertOpen=false;render();}
-function escalate(){state.alertOpen=false;goto("report");}
-
-/* ---------------- settings ---------------- */
-async function toggleSetting(key){
-  state.settings[key]=!state.settings[key];
-  render();
-  try{await api("/api/settings",{method:"PUT",json:{settings:{[key]:state.settings[key]}}});}catch(e){}
-}
-
-/* ---------------- file analyze ---------------- */
-function startUpload(){
-  const inp=document.createElement("input");
-  inp.type="file"; inp.accept="audio/*,.wav,.mp3,.flac,.ogg";
-  inp.onchange=async()=>{
-    const f=inp.files[0]; if(!f) return;
-    state.uploadFilename=f.name; state.uploadState="uploading"; state.uploadPct=10; render();
-    const fd=new FormData(); fd.append("file",f);
-    try{
-      state.uploadPct=55; render();
-      const r=await api("/api/analyze",{method:"POST",body:fd});
-      state.uploadPct=100; state.uploadState="done"; state.report=r.report; state.reportId=r.session_id; render();
-    }catch(e){state.uploadState="idle";state.uploadPct=0;render();}
-  };
-  inp.click();
-}
-
-/* ---------------- style helpers ---------------- */
-function navBtnStyle(active){
-  return `display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:11px 18px;border:none;border-left:2px solid ${active?C.green:"transparent"};background:${active?"rgba(56,239,125,.07)":"transparent"};color:${active?C.green:C.text};font-family:var(--mono);font-size:12px;letter-spacing:.14em;cursor:pointer;${active?"text-shadow:0 0 8px var(--fit-green-glow);":""}`;
-}
-function devBtnStyle(active){
-  return `font-size:10px;letter-spacing:.1em;padding:6px 11px;border:none;cursor:pointer;background:${active?C.green:"transparent"};color:${active?"#0b1a10":C.muted}`;
-}
-function chipStyle(kind){
-  const map={subject:C.green,alias:C.sage,place:C.green,threat:C.alert,asset:C.scan};
-  const col=map[kind]||C.sage;
-  return `font-size:12px;letter-spacing:.08em;padding:7px 12px;border:1px solid ${col};color:${col};background:rgba(120,168,144,.05)`;
-}
-function toggleStyle(on){return `width:40px;height:20px;border:1px solid ${on?C.green:"#2c3233"};background:${on?"rgba(56,239,125,.15)":"#0b0d0d"};position:relative;cursor:pointer;padding:0`;}
-function knobStyle(on){return `position:absolute;top:1px;left:${on?"21px":"1px"};width:16px;height:16px;background:${on?C.green:"#4e5856"};transition:left .15s,background .15s`;}
-function cellStyle(active,hasVal){
-  const base="padding:13px 12px;border-right:1px solid var(--fit-grid-line);border-bottom:1px solid var(--fit-grid-line);font-size:13px;letter-spacing:.06em;min-height:44px;display:flex;align-items:center;";
-  if(active)return base+`background:repeating-linear-gradient(45deg,rgba(56,239,125,.06) 0,rgba(56,239,125,.06) 6px,transparent 6px,transparent 12px);border-left:2px solid ${C.green};color:${C.green};font-weight:700;box-shadow:inset 0 0 10px var(--fit-green-glow)`;
-  return base+`color:${hasVal?C.green:C.faint}`;
-}
-const titlebar=t=>`<div style="background:var(--fit-titlebar);padding:7px 12px;font-size:12px;border-bottom:1px solid var(--fit-border);display:flex;justify-content:space-between"><span>${t}</span><span style="color:var(--fit-text-faint)">- □ x</span></div><div style="height:2px;background:linear-gradient(90deg,var(--fit-green),transparent)"></div>`;
-
-/* ---------------- screens ---------------- */
-function loginScreen(){
-  return `<div style="position:absolute;inset:0;z-index:50;background:var(--fit-bg);display:grid;grid-template-rows:auto 1fr auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 24px;border-bottom:1px solid var(--fit-border);font-size:10px;letter-spacing:.28em;color:var(--fit-sage)"><span>RESTRICTED — AUTHORIZED USE ONLY</span><span>ACCESS TERMINAL · NODE CH.07</span></div>
-    <div style="display:flex;align-items:center;justify-content:center">
-      <div style="width:420px;max-width:90vw">
-        <div style="font-size:44px;letter-spacing:.42em;color:var(--fit-green);text-shadow:0 0 14px var(--fit-green-glow);font-weight:700">FITINI</div>
-        <div style="font-size:10px;letter-spacing:.3em;color:var(--fit-text-muted);margin:10px 0 36px">VOICE ANALYZER — AUTHENTICATION REQUIRED</div>
-        <div style="border:1px solid var(--fit-border);background:var(--fit-surface)">
-          ${titlebar("Secure Login")}
-          <div style="padding:22px 20px;display:flex;flex-direction:column;gap:18px">
-            <label style="display:block"><div style="font-size:11px;letter-spacing:.14em;color:var(--fit-text-muted);margin-bottom:7px">OPERATOR ID</div>
-              <input id="opId" value="${esc(state.operatorId)}" style="width:100%;background:var(--fit-surface-3);border:1px solid var(--fit-border);color:var(--fit-green);font-size:14px;letter-spacing:.1em;padding:10px 12px;outline:none"/></label>
-            <label style="display:block"><div style="font-size:11px;letter-spacing:.14em;color:var(--fit-text-muted);margin-bottom:7px">PASSPHRASE</div>
-              <input id="pass" type="password" value="fitini" style="width:100%;background:var(--fit-surface-3);border:1px solid var(--fit-border);color:var(--fit-green);font-size:14px;letter-spacing:.3em;padding:10px 12px;outline:none"/></label>
-            <div style="display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.1em;color:var(--fit-text-muted)"><span style="width:8px;height:8px;border-radius:50%;background:var(--fit-green);box-shadow:0 0 6px var(--fit-green-glow);animation:fit-pulse 1.6s infinite"></span>BIOMETRIC TOKEN · <span style="color:var(--fit-green)">PRESENT</span></div>
-            ${state.loginError?`<div style="font-size:11px;letter-spacing:.1em;color:var(--fit-alert)">◆ ${esc(state.loginError)}</div>`:""}
-            <button onclick="doLogin()" style="margin-top:4px;width:100%;font-size:13px;letter-spacing:.2em;color:var(--fit-ink-on-green);background:var(--fit-green);border:none;padding:13px;cursor:pointer;box-shadow:0 0 10px var(--fit-green-glow)">▶ AUTHENTICATE</button>
-          </div>
-        </div>
-        <div style="margin-top:16px;font-size:10px;letter-spacing:.12em;color:var(--fit-text-faint);line-height:1.8">CLEARANCE: TS/SCI · FAILED ATTEMPTS: 0/3<br>UNAUTHORIZED ACCESS IS A FEDERAL OFFENSE · DEMO — PASSPHRASE: fitini</div>
-      </div>
-    </div>
-    <div style="padding:10px 24px;border-top:1px solid var(--fit-border);font-size:10px;letter-spacing:.2em;color:var(--fit-text-faint);display:flex;justify-content:space-between"><span>FITINI v2.4.1</span><span>© DIRECTORATE · ENCRYPTED SESSION</span></div>
-  </div>`;
-}
-
-function statusInfo(){
-  if(state.screen==="intercept"&&state.started&&!state.done) return {c:C.scan,l:"STREAM ACTIVE"};
-  if(state.done) return {c:C.green,l:"INTERCEPT COMPLETE"};
-  return {c:C.muted,l:"STANDBY"};
-}
-function topBar(){
-  const st=statusInfo();
-  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 20px;border-bottom:1px solid var(--fit-border);background:var(--fit-surface-3)">
-    <div style="display:flex;align-items:center;gap:18px"><span style="font-size:16px;letter-spacing:.34em;color:var(--fit-green);text-shadow:0 0 10px var(--fit-green-glow);font-weight:700">FITINI</span><span style="font-size:10px;letter-spacing:.24em;color:var(--fit-sage)">RESTRICTED · CH.07</span></div>
-    <div style="display:flex;align-items:center;gap:14px">
-      <span style="display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.12em;color:${st.c}"><span style="width:8px;height:8px;border-radius:50%;background:${st.c};animation:fit-pulse 1.6s infinite"></span>${st.l}</span>
-      <span id="clock" style="font-size:11px;color:var(--fit-text-muted);letter-spacing:.1em">${esc(state.clock)}</span>
-      <div style="display:flex;border:1px solid var(--fit-border)"><button onclick="state.device='desktop';render()" style="${devBtnStyle(state.device==='desktop')}">DESKTOP</button><button onclick="state.device='tablet';render()" style="${devBtnStyle(state.device==='tablet')}">TABLET</button></div>
-      <button onclick="simThreat()" title="simulate threat" style="font-size:10px;letter-spacing:.12em;color:var(--fit-alert);background:transparent;border:1px solid var(--fit-alert);padding:6px 10px;cursor:pointer">◆ SIM THREAT</button>
-      <button onclick="logout()" style="font-size:10px;letter-spacing:.12em;color:var(--fit-text-muted);background:transparent;border:1px solid var(--fit-border);padding:6px 10px;cursor:pointer">⏻ LOCK</button>
-    </div>
-  </div>`;
-}
-function navRail(){
-  const items=NAV.map(n=>{
-    const active=state.screen===n.id;
-    const badge=(n.live&&state.screen==="intercept"&&state.started&&!state.done)?`<span style="margin-left:auto;font-size:9px;letter-spacing:.1em;color:var(--fit-green)">●</span>`:"";
-    return `<button onclick="goto('${n.id}')" style="${navBtnStyle(active)}"><span style="color:var(--fit-text-faint);font-size:10px">${n.num}</span><span>${n.label}</span>${badge}</button>`;
+function lineHtml(ln){
+  const spk=ln.speaker||"";
+  const segs=ln.segs.map(s=>{
+    if(!s.label) return `<span>${esc(s.text)}</span>`;
+    const cat=catOf(s.label); const dim=S.filterEnt&&S.filterEnt!==s.canonical?" dim":"";
+    return `<span class="ent${dim}" data-ent="${esc(s.canonical||"")}" onclick="fitini.focus('${esc(s.canonical||"")}')" style="color:${catColor(cat)}">${esc(s.text)}</span>`;
   }).join("");
-  return `<nav style="width:208px;border-right:1px solid var(--fit-border);background:var(--fit-surface-3);display:flex;flex-direction:column;padding:16px 0;min-height:0">
-    <div style="font-size:10px;letter-spacing:.24em;color:var(--fit-text-faint);padding:0 18px 12px">NAVIGATION</div>${items}
-    <div style="margin-top:auto;padding:14px 18px;border-top:1px solid var(--fit-border);font-size:10px;letter-spacing:.1em;color:var(--fit-text-faint);line-height:1.7">OPERATOR<br><span style="color:var(--fit-sage)">${esc(state.operatorId)}</span><br>SESSION ENCRYPTED</div>
-  </nav>`;
+  return `<div style="animation:fit-stream .3s var(--ease);display:grid;grid-template-columns:60px 1fr;gap:10px;align-items:baseline">
+    <span style="color:var(--fit-text-faint);font-size:11px">${esc(ln.ts||"")}</span>
+    <div style="font-size:15px;line-height:1.5;color:var(--fit-text-dim)">${segs}</div></div>`;
 }
-const dashCols=()=>state.device==="tablet"?"1fr":"1.35fr 1fr";
-
-function standbyScreen(){
-  const recent=state.sessions.slice(0,4).map(a=>`<button onclick="openSession('${esc(a.id)}')" style="width:100%;text-align:left;display:grid;grid-template-columns:90px 1fr auto;gap:10px;padding:10px 16px;border:none;border-bottom:1px solid var(--fit-grid-line);background:transparent;color:var(--fit-text);font-size:11px;cursor:pointer"><span style="color:var(--fit-sage)">${esc(a.id)}</span><span style="color:var(--fit-text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.subject)}</span><span style="color:${a.statusColor}">${esc(a.status)}</span></button>`).join("");
-  return `<div style="padding:28px 36px;display:grid;grid-template-columns:${dashCols()};gap:22px;min-height:100%">
-    <div style="border:1px solid var(--fit-border);background:var(--fit-surface);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 24px;position:relative;overflow:hidden">
-      <div style="position:absolute;top:0;left:0;right:0;height:60px;background:linear-gradient(var(--fit-green-glow),transparent);opacity:.15;animation:fit-scan 4s linear infinite"></div>
-      <div style="font-size:11px;letter-spacing:.3em;color:var(--fit-sage);margin-bottom:22px">AUDIO INTERCEPT · AWAITING SIGNAL</div>
-      <div style="font-size:64px;letter-spacing:.3em;color:var(--fit-text-faint);margin-bottom:8px">▌</div>
-      <div style="font-size:13px;letter-spacing:.16em;color:var(--fit-text-muted);margin-bottom:34px">NO ACTIVE STREAM</div>
-      <button onclick="goto('intercept')" style="font-size:14px;letter-spacing:.2em;color:var(--fit-ink-on-green);background:var(--fit-green);border:none;padding:14px 32px;cursor:pointer;box-shadow:0 0 12px var(--fit-green-glow)">▶ INITIATE INTERCEPT</button>
-      <button onclick="goto('upload')" style="margin-top:14px;font-size:11px;letter-spacing:.14em;color:var(--fit-sage);background:transparent;border:1px solid var(--fit-border);padding:9px 20px;cursor:pointer">⤒ ANALYZE RECORDED FILE</button>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
-      <div style="border:1px solid var(--fit-border);background:var(--fit-surface)">${titlebar("Source Config")}
-        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:11px;font-size:12px">
-          <div style="display:flex;justify-content:space-between"><span style="color:var(--fit-text-muted)">Input:</span><span style="color:var(--fit-green)">LIVE MIC · 48kHz</span></div>
-          <div style="display:flex;justify-content:space-between"><span style="color:var(--fit-text-muted)">VAD:</span><span>SILERO · THR ${esc(state.settings.vad_threshold)}</span></div>
-          <div style="display:flex;justify-content:space-between"><span style="color:var(--fit-text-muted)">Model:</span><span>${esc(state.settings.model_label)}</span></div>
-          <div style="display:flex;justify-content:space-between"><span style="color:var(--fit-text-muted)">NER:</span><span>spaCy · en_core_web_trf</span></div>
-        </div>
-      </div>
-      <div style="border:1px solid var(--fit-border);background:var(--fit-surface);flex:1;min-height:0">${titlebar("Recent Intercepts")}${recent}</div>
-    </div>
-  </div>`;
-}
-
-/* --- streaming transcript renderers --- */
-// Keyword spans carry data-canon so ONE connector can be drawn from the just-flagged
-// word to its matrix cell (drawLink uses the latest occurrence of state.activeCanon).
-function segSpan(s,revealed){
-  if(s.kind==="plain") return `<span>${esc(s.text)}</span>`;
-  if(!revealed) return `<span style="color:var(--fit-text-dim)">${esc(s.text)}</span>`;
-  const dc=s.canonical?` data-canon="${esc(s.canonical)}"`:"";
-  if(s.kind==="kw_lock")
-    return `<span${dc} style="background:var(--fit-green-solid);color:var(--fit-ink-on-green);padding:1px 5px;font-weight:700;box-shadow:0 0 8px var(--fit-green-glow)">${esc(s.text)}</span>`;
-  return `<span${dc} style="color:var(--fit-green);background:rgba(56,239,125,.08);padding:1px 4px;font-weight:700">${esc(s.text)}</span>`;
-}
-function lineDiv(ts,inner){
-  return `<div style="font-size:16px;line-height:1.45;letter-spacing:.03em;color:var(--fit-text-dim)"><span style="color:var(--fit-text-faint);font-size:11px;margin-right:10px">${esc(ts||"")}</span>${inner}</div>`;
-}
-function animLineHtml(){
-  const a=state.anim;let out="";
-  for(let i=0;i<a.spans.length;i++){
-    const sp=a.spans[i],s=sp.seg;
-    if(a.reveal<=sp.start) break;
-    if(a.reveal>=sp.end){ out+=segSpan(s,true); }
-    else { out+=`<span style="color:var(--fit-text-dim)">${esc(s.text.slice(0,a.reveal-sp.start))}</span>`; break; }
-  }
-  const cursor=a.reveal<a.len?`<span style="color:var(--fit-sage);animation:fit-blink 1s step-end infinite">▌</span>`:"";
-  return lineDiv(a.ts,out+cursor);
-}
-function transcriptInner(){
-  const header=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:11px;letter-spacing:.2em;color:var(--fit-sage)">LIVE TRANSCRIPT · CH.07</span><span style="font-size:10px;color:var(--fit-text-faint)">${state.lines.length}${state.anim?"+1":""}</span></div>`;
-  if(!state.started){
-    return header+`<div style="margin:auto;text-align:center;padding:60px 0"><div style="font-size:10px;letter-spacing:.28em;color:var(--fit-sage);margin-bottom:18px">AWAITING SIGNAL</div><button onclick="startIntercept()" style="font-size:13px;letter-spacing:.14em;color:var(--fit-ink-on-green);background:var(--fit-green);border:none;padding:11px 22px;cursor:pointer;box-shadow:0 0 10px var(--fit-green-glow)">▶ INITIATE INTERCEPT</button></div>`;
-  }
-  let html=header;
-  state.lines.forEach(ln=>{ html+=lineDiv(ln.ts,ln.segs.map(s=>segSpan(s,true)).join("")); });
-  if(state.anim) html+=animLineHtml();
-  if(state.streaming&&!state.anim) html+=`<div style="color:var(--fit-sage);font-size:16px;letter-spacing:.03em">▌<span style="opacity:.6"> listening…</span></div>`;
-  return html;
-}
-
-function railInner(){
-  const matrix=[];
+function renderMatrix(){
+  const el=$("matrix"); if(!el)return;
+  let html="";
   for(let r=0;r<6;r++)for(let c=0;c<2;c++){
-    const val=state.rows[r][c];const hot=(c===0&&!!val&&state.rows[r][0]===state.hotCanon);
-    matrix.push(`<div id="cell-${r}-${c}" class="${hot?"cell-hot":""}" style="${cellStyle(false,!!val)}"><span>${esc(val||"—")}</span></div>`);
+    const v=S.rows[r][c]; const hot=c===0&&v&&v===S.hotCanon;
+    html+=`<div id="cell-${r}-${c}" class="cellbox${v?"":" empty"}${hot?" cell-hot":""}">${esc(v||"—")}</div>`;
   }
-  const locs=state.locations.map(l=>`<div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:11px;letter-spacing:.1em"><span style="width:7px;height:7px;background:var(--fit-green)"></span><span style="color:var(--fit-green)">${esc(l)}</span><span style="color:var(--fit-text-faint);margin-left:auto">LOCKED</span></div>`).join("");
-  const locLabel=state.locations.length>=2?"Locked":state.locations.length?"Partial":"Scanning";
-  const locColor=state.locations.length>=2?C.green:state.locations.length?C.scan:C.muted;
-  const analyzerColor=state.done?C.green:state.started?C.scan:C.muted;
-  const analyzerLabel=state.done?"INTERCEPT COMPLETE":state.started?"STREAM ACTIVE":"IDLE";
-  return `<div style="border:1px solid var(--fit-border);background:var(--fit-surface)">${titlebar("Correlation Matrix")}<div style="display:grid;grid-template-columns:1fr 1fr">${matrix.join("")}</div></div>
-    <div style="border:1px solid var(--fit-border);background:var(--fit-surface)">${titlebar("Summary")}
-      <div style="padding:13px 16px;display:flex;flex-direction:column;gap:9px;font-size:13px">
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--fit-text-muted)">Subject:</span><span style="color:${state.idLocked?C.green:C.muted};font-weight:700;letter-spacing:.06em">${esc(state.subject)}</span></div>
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--fit-text-muted)">Algorithm:</span><span>Key words</span></div>
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--fit-text-muted)">Location:</span><span style="color:${locColor}">${locLabel}</span></div>
-        <div style="display:flex;justify-content:space-between"><span style="color:var(--fit-text-muted)">ID:</span><span style="color:${state.idLocked?C.green:C.muted}">${state.idLocked?"Confirmed":"Pending"}</span></div>
-        ${locs}
-      </div>
-    </div>
-    <div style="border:1px solid var(--fit-border);background:var(--fit-surface)">${titlebar("Voice Analyzer")}
-      <div style="padding:13px 16px;display:flex;justify-content:space-between;align-items:center">
-        <span style="display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.12em;color:${analyzerColor}"><span style="width:8px;height:8px;border-radius:50%;background:${analyzerColor}"></span>${analyzerLabel}</span>
-        ${state.done?`<button onclick="goto('report')" style="font-size:10px;letter-spacing:.14em;color:var(--fit-ink-on-green);background:var(--fit-green);border:none;padding:7px 12px;cursor:pointer">VIEW REPORT →</button>`:(state.streaming?`<span style="font-size:10px;color:var(--fit-scanning);letter-spacing:.1em;animation:fit-pulse 1.4s infinite">● REC</span>`:"")}
-      </div>
-      ${state.done?`<div style="padding:0 16px 14px"><button onclick="startIntercept()" style="font-size:11px;letter-spacing:.14em;color:var(--fit-sage);background:transparent;border:1px solid var(--fit-border);padding:7px 14px;cursor:pointer">↻ REPLAY</button></div>`:""}
-    </div>`;
+  el.innerHTML=html;
 }
-function interceptScreen(){
-  return `<div style="position:relative;min-height:100%">
-    <div style="padding:22px 28px;display:grid;grid-template-columns:${dashCols()};gap:0;min-height:100%">
-      <div id="transcript" style="padding-right:28px;border-right:1px solid var(--fit-border);display:flex;flex-direction:column;gap:11px;overflow-y:auto;min-height:0;max-height:calc(100vh - 150px)">${transcriptInner()}</div>
-      <div id="rail" style="padding-left:24px;display:flex;flex-direction:column;gap:16px;min-height:0">${railInner()}</div>
-    </div>
-  </div>`;
+function renderSummary(){
+  const el=$("summary"); if(!el)return;
+  const locked=S.summary.locked; const subj=S.summary.entities.includes("AMIRI")?"AMIRI":(S.summary.entities[0]||"SEARCHING...");
+  const row=(k,v,col)=>`<div style="display:flex;justify-content:space-between"><span style="color:var(--fit-text-muted)">${k}</span><span style="color:${col||"var(--fit-text)"};font-weight:700;letter-spacing:.05em">${esc(v)}</span></div>`;
+  el.innerHTML=row("Sujet :",subj,locked?"var(--fit-green)":"var(--fit-text-muted)")
+    +row("Algorithme :","Mots-clés")
+    +row("Entités :",String(S.summary.entities.length),"var(--fit-green)")
+    +row("Lock :",locked?"VERROUILLÉ":"—",locked?"var(--fit-green)":"var(--fit-text-muted)");
+}
+function renderAnalyzer(){
+  const el=$("analyzer"); if(!el)return;
+  const col=S.done?"var(--fit-green)":S.started?"var(--fit-scanning)":"var(--fit-text-muted)";
+  const lab=S.done?"INTERCEPT COMPLETE":S.started?"STREAM ACTIVE":"IDLE";
+  el.innerHTML=`<span style="display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.12em;color:${col}"><span style="width:8px;height:8px;border-radius:50%;background:${col}"></span>${lab}</span>`
+    +(S.done?`<button class="ghost" onclick="fitini.go('report')">REPORT →</button>`:S.streaming?`<span style="font-size:10px;color:var(--fit-scanning);animation:fit-pulse 1.4s infinite">● REC</span>`:"");
 }
 
-function reportScreen(){
-  const rep=state.report;
-  if(!rep) return `<div style="padding:28px 36px;color:var(--fit-text-muted)">No report loaded. Run an intercept or open a session from the Archive.</div>`;
-  const stats=(rep.stats||[]).map(st=>`<div style="border:1px solid var(--fit-border);background:var(--fit-surface);padding:16px 18px"><div style="font-size:10px;letter-spacing:.16em;color:var(--fit-text-muted);margin-bottom:10px">${esc(st.label)}</div><div style="font-size:28px;letter-spacing:.04em;color:${st.color}">${esc(st.val)}</div></div>`).join("");
-  const ents=(rep.entities||[]).map(e=>`<div style="display:grid;grid-template-columns:1fr 1fr 70px;padding:11px 16px;font-size:13px;border-bottom:1px solid var(--fit-grid-line);align-items:center"><span style="color:var(--fit-green);font-weight:700">${esc(e.name)}</span><span style="color:var(--fit-text-muted);font-size:11px;letter-spacing:.1em">${esc(e.cls)}</span><span style="color:${e.cColor};font-size:11px">${esc(e.conf)}</span></div>`).join("");
-  const tgts=(rep.targets||[]).map(t=>`<div style="border:1px solid var(--fit-green-dim);background:rgba(56,239,125,.06);padding:12px 14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="color:var(--fit-green);font-weight:700;letter-spacing:.08em">${esc(t.code)}</span><span style="font-size:9px;letter-spacing:.14em;color:var(--fit-green)">● LOCKED</span></div><div style="font-size:11px;color:var(--fit-text-muted)">${esc(t.detail)}</div></div>`).join("");
-  const tl=(rep.timeline||[]).map(x=>`<div style="display:grid;grid-template-columns:52px 1fr;gap:12px;font-size:12px"><span style="color:var(--fit-sage)">${esc(x.t)}</span><span style="color:var(--fit-text-dim)">${esc(x.e)}</span></div>`).join("");
-  return `<div style="padding:28px 36px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;flex-wrap:wrap;gap:12px">
-      <div><div style="font-size:10px;letter-spacing:.28em;color:var(--fit-sage);margin-bottom:8px">INTERCEPT REPORT · ${esc(state.reportId||"—")}</div><div style="font-size:22px;letter-spacing:.1em;color:var(--fit-text)">SESSION COMPLETE</div></div>
-      <div style="display:flex;gap:10px"><button style="font-size:11px;letter-spacing:.14em;color:var(--fit-sage);background:transparent;border:1px solid var(--fit-border);padding:9px 16px;cursor:pointer">⤓ EXPORT PDF</button><button onclick="escalate()" style="font-size:11px;letter-spacing:.14em;color:var(--fit-ink-on-green);background:var(--fit-green);border:none;padding:9px 16px;cursor:pointer">◆ ESCALATE</button></div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px">${stats}</div>
-    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:20px">
-      <div style="border:1px solid var(--fit-border);background:var(--fit-surface)">${titlebar("Extracted Entities")}<div style="display:grid;grid-template-columns:1fr 1fr 70px;padding:9px 16px;font-size:10px;letter-spacing:.14em;color:var(--fit-text-faint);border-bottom:1px solid var(--fit-grid-line)"><span>ENTITY</span><span>CLASS</span><span>CONF</span></div>${ents}</div>
-      <div style="display:flex;flex-direction:column;gap:20px">
-        <div style="border:1px solid var(--fit-border);background:var(--fit-surface)">${titlebar("Locked Targets")}<div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">${tgts||'<span style="color:var(--fit-text-faint);font-size:11px">No targets locked</span>'}</div></div>
-        <div style="border:1px solid var(--fit-border);background:var(--fit-surface);flex:1">${titlebar("Event Timeline")}<div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">${tl}</div></div>
-      </div>
-    </div>
-  </div>`;
+/* ---- REPORT (workspace) ---- */
+function viewReport(){
+  const actions=[["Chronologie","chrono"],["Graphe","graphe"],["Flags","flags"],["Croiser","cross"],[S.filterEnt?"Retirer le filtre":"Filtrer","filter"]]
+    .map(([l,a])=>`<button onclick="fitini.action('${a}')" style="font-size:11px;letter-spacing:.1em;color:var(--fit-text);background:var(--fit-surface);border:1px solid var(--fit-border);padding:9px 14px;cursor:pointer">${esc(l)}</button>`).join("");
+  const wsLines=S.lines.length?S.lines.map(ln=>lineHtml(ln)).join(""):`<div style="color:var(--fit-text-faint);font-size:12px">Aucun flux analysé. Lancez un INTERCEPT ou un ANALYZE.</div>`;
+  const results=S.results.map(r=>`<div style="border:1px solid var(--fit-border);border-left:2px solid var(--fit-green);background:var(--fit-surface-2);padding:10px 12px;animation:fit-flash .6s ease">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:var(--fit-green);font-weight:700">${esc(r.title)}</span><button onclick="fitini.dropResult(${r.id})" style="background:none;border:none;color:var(--fit-text-faint);cursor:pointer">✕</button></div>
+      <div style="font-size:12px;color:var(--fit-text-dim);margin:6px 0 8px;line-height:1.5">${esc(r.body)}</div>
+      <div style="font-size:10px;color:var(--fit-text-faint);border-top:1px dashed var(--fit-border);padding-top:7px"><span style="color:var(--fit-sage)">SOURCES ▸</span> ${esc(r.sources)}</div></div>`).join("");
+  const hyp=(S.hypotheses.length?S.hypotheses:[]).slice(0,4).map(h=>{
+    const pct=Math.round((h.confidence||0)*100); const col=catColor(catOf(h.code||"ORG"));
+    const pres=(h.present||[]).join(" · ")||"—";
+    return `<div style="border:1px solid var(--fit-border);background:var(--fit-surface-2);padding:11px 12px">
+      <div style="font-size:12px;color:var(--fit-text);line-height:1.45;margin-bottom:9px">${esc(h.name)}</div>
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px"><span style="font-size:9px;color:var(--fit-text-faint)">CONFIANCE</span>
+        <div style="flex:1;height:5px;background:var(--fit-surface-3);border:1px solid var(--fit-border)"><div style="height:100%;width:${pct}%;background:${col}"></div></div>
+        <span style="font-size:11px;color:${col};font-weight:700">${(h.confidence||0).toFixed(2)}</span></div>
+      <div style="font-size:10px;color:var(--fit-text-faint);border-top:1px dashed var(--fit-border);padding-top:7px"><span style="color:var(--fit-sage)">CRITÈRES ▸</span> ${esc(pres)}</div></div>`;
+  }).join("")||`<div style="color:var(--fit-text-faint);font-size:12px">—</div>`;
+  const tl=S.timeline.filter(e=>e.kind!=="lead").slice(0,12).map(t=>`<div style="display:grid;grid-template-columns:52px 1fr;gap:12px;padding:8px 0;border-bottom:1px solid var(--fit-grid-line)">
+      <span style="color:var(--fit-sage);font-size:12px">${esc(t.t||"")}</span>
+      <div><div style="font-size:12px;color:var(--fit-text-dim);line-height:1.45">${esc(t.text)}${t.detail?` <span style="color:var(--fit-text-faint)">(${esc(t.detail)})</span>`:""}</div>${t.source?`<div style="font-size:10px;color:var(--fit-text-faint);margin-top:3px">SOURCES ▸ ${esc(t.source)}</div>`:""}</div></div>`).join("")||`<div style="color:var(--fit-text-faint);font-size:12px">—</div>`;
+  const flags=S.flags.map(f=>{const col=f.urgency==="URGENT"?"var(--fit-alert)":"var(--fit-scanning)";
+    return `<div style="border:1px solid var(--fit-border);border-left:2px solid ${col};background:var(--fit-surface-2);padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:5px"><span style="font-size:12px;color:${col};font-weight:700">${esc(f.name)}${f.value?" · "+esc(f.value):""}</span><span style="font-size:9px;color:${col}">${esc(f.urgency||"")}</span></div>
+      <div style="font-size:11px;color:var(--fit-text-muted);line-height:1.45">${esc(f.message||"")}</div></div>`;}).join("")||`<div style="color:var(--fit-text-faint);font-size:12px">—</div>`;
+  const filterBar=S.filterEnt?`<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:8px 10px;border:1px solid var(--fit-green-dim);background:rgba(56,239,125,.07);font-size:11px"><span style="color:var(--fit-green)">FILTRE : ${esc(S.filterEnt)}</span><button class="ghost" onclick="fitini.action('filter')" style="margin-left:auto">✕ RETIRER</button></div>`:"";
+  return `<div style="padding:18px 26px 40px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--fit-border)">
+      <span style="font-size:10px;letter-spacing:.18em;color:var(--fit-text-faint)">ACTIONS</span>${actions}
+      <span style="margin-left:auto;font-size:10px;color:var(--fit-text-faint)">${esc([...S.domains].join(" · ").toUpperCase())}</span></div>
+    <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:20px;align-items:start">
+      <div class="win"><div class="win-h">Corpus · Transcription</div><div class="win-r"></div>
+        <div style="padding:14px 16px;max-height:560px;overflow:auto;display:flex;flex-direction:column;gap:11px">${filterBar}${wsLines}</div></div>
+      <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
+        ${S.results.length?`<div class="win"><div class="win-h">Résultats d'actions</div><div class="win-r"></div><div style="padding:12px;display:flex;flex-direction:column;gap:10px">${results}</div></div>`:""}
+        <div class="win"><div class="win-h">Hypothèses</div><div class="win-r"></div><div style="padding:12px;display:flex;flex-direction:column;gap:12px">${hyp}</div></div>
+        <div class="win"><div class="win-h">Graphe de relations</div><div class="win-r"></div><div style="padding:12px">${graphSvg()}</div></div>
+        <div class="win"><div class="win-h">Chronologie des faits</div><div class="win-r"></div><div style="padding:6px 14px 10px">${tl}</div></div>
+        <div class="win"><div class="win-h">Flags · anomalies</div><div class="win-r"></div><div style="padding:12px;display:flex;flex-direction:column;gap:10px">${flags}</div></div>
+      </div></div></div>`;
+}
+function graphSvg(){
+  const nodes=S.summary.entities.slice(0,8);
+  if(!nodes.length) return `<div style="color:var(--fit-text-faint);font-size:12px">—</div>`;
+  const cx=160,cy=120,R=90; const pos={};
+  nodes.forEach((n,i)=>{const a=-Math.PI/2+i*2*Math.PI/nodes.length;pos[n]={x:cx+R*Math.cos(a),y:cy+R*Math.sin(a)};});
+  const edges=S.relationships.filter(([a,b])=>pos[a]&&pos[b]).map(([a,b])=>{const hot=S.filterEnt&&(S.filterEnt===a||S.filterEnt===b);
+    return `<line x1="${pos[a].x}" y1="${pos[a].y}" x2="${pos[b].x}" y2="${pos[b].y}" stroke="var(--fit-sage)" stroke-width="1" stroke-dasharray="3,3" opacity="${hot?0.9:0.4}"></line>`;}).join("");
+  const circ=nodes.map(n=>{const foc=S.filterEnt===n;const short=n.length>8?n.slice(0,7)+"…":n;
+    return `<g onclick="fitini.focus('${esc(n)}')" style="cursor:pointer"><circle cx="${pos[n].x}" cy="${pos[n].y}" r="${foc?18:14}" fill="var(--fit-surface-3)" stroke="var(--fit-green)" stroke-width="${foc?2.4:1.3}"></circle><text x="${pos[n].x}" y="${pos[n].y+3}" text-anchor="middle" font-size="8" font-family="var(--mono)" fill="var(--fit-green)">${esc(short)}</text></g>`;}).join("");
+  return `<svg viewBox="0 0 320 240" style="width:100%;height:auto;display:block">${edges}${circ}</svg>`;
 }
 
-function dossierScreen(){
-  const d=state.dossier;
-  if(!d) return `<div style="padding:28px 36px;color:var(--fit-text-muted)">Loading dossier…</div>`;
-  const aliases=(d.aliases||[]).map(a=>a.to?`<div style="display:flex;align-items:center;gap:10px"><span style="color:var(--fit-green)">${esc(a.from)}</span><span style="color:var(--fit-text-faint)">→</span><span style="color:var(--fit-text-muted)">${esc(a.to)}</span></div>`:`<div style="display:flex;align-items:center;gap:10px"><span style="color:var(--fit-sage)">${esc(a.from)}</span><span style="color:var(--fit-text-faint)">· ${esc(a.status)}</span></div>`).join("");
-  const locs=(d.locations||[]).map(l=>`<div style="display:flex;align-items:center;gap:8px"><span style="width:7px;height:7px;background:var(--fit-green)"></span><span style="color:var(--fit-green)">${esc(l)}</span><span style="color:var(--fit-text-faint);margin-left:auto">LOCKED</span></div>`).join("");
-  const net=(d.network||[]).map(n=>`<div style="${chipStyle(n.kind)}">${esc(n.name)}</div>`).join("");
-  const rel=(d.related||[]).map(r=>`<button onclick="openSession('${esc(r.id)}')" style="width:100%;text-align:left;display:grid;grid-template-columns:90px 1fr auto;gap:10px;padding:11px 16px;border:none;border-bottom:1px solid var(--fit-grid-line);background:transparent;color:var(--fit-text);font-size:12px;cursor:pointer"><span style="color:var(--fit-sage)">${esc(r.id)}</span><span style="color:var(--fit-text-muted)">${esc(r.note)}</span><span style="color:var(--fit-text-faint)">${esc(r.date)}</span></button>`).join("");
-  return `<div style="padding:28px 36px"><div style="display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:start">
-    <div style="border:1px solid var(--fit-border);background:var(--fit-surface)">${titlebar("Target Profile")}
-      <div style="padding:20px 18px">
-        <div style="width:100%;aspect-ratio:1;border:1px solid var(--fit-border);background:var(--fit-surface-3);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;margin-bottom:16px"><span style="font-size:11px;letter-spacing:.2em;color:var(--fit-text-faint)">NO IMAGERY</span><span style="position:absolute;bottom:8px;left:8px;font-size:9px;letter-spacing:.14em;color:var(--fit-alert)">● UNVERIFIED</span></div>
-        <div style="font-size:24px;letter-spacing:.1em;color:var(--fit-green);text-shadow:0 0 10px var(--fit-green-glow);font-weight:700">${esc(d.code)}</div>
-        <div style="font-size:11px;letter-spacing:.14em;color:var(--fit-text-muted);margin:6px 0 16px">${esc(d.subtitle)}</div>
-        <div style="display:flex;flex-direction:column;gap:10px;font-size:12px">
-          <div style="display:flex;justify-content:space-between"><span style="color:var(--fit-text-muted)">Alias:</span><span style="color:var(--fit-green)">${esc(d.alias)}</span></div>
-          <div style="display:flex;justify-content:space-between"><span style="color:var(--fit-text-muted)">Threat:</span><span style="color:var(--fit-alert)">${esc(d.threat)}</span></div>
-          <div style="display:flex;justify-content:space-between"><span style="color:var(--fit-text-muted)">Confidence:</span><span style="color:var(--fit-green)">${esc(d.confidence)}</span></div>
-          <div style="display:flex;justify-content:space-between"><span style="color:var(--fit-text-muted)">Last seen:</span><span>${esc(d.last_seen)}</span></div>
-        </div>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-        <div style="border:1px solid var(--fit-border);background:var(--fit-surface)">${titlebar("Known Aliases")}<div style="padding:14px 16px;display:flex;flex-direction:column;gap:9px;font-size:12px">${aliases}</div></div>
-        <div style="border:1px solid var(--fit-border);background:var(--fit-surface)">${titlebar("Associated Locations")}<div style="padding:14px 16px;display:flex;flex-direction:column;gap:9px;font-size:12px">${locs}</div></div>
-      </div>
-      <div style="border:1px solid var(--fit-border);background:var(--fit-surface)">${titlebar("Network — Linked Entities")}<div style="padding:16px;display:flex;flex-wrap:wrap;gap:10px">${net}</div></div>
-      <div style="border:1px solid var(--fit-border);background:var(--fit-surface)">${titlebar("Related Intercepts")}${rel}</div>
-    </div>
-  </div></div>`;
+/* ---- secondary screens ---- */
+function viewDossier(){
+  const subj=S.summary.locked?"AMIRI":(S.summary.entities[0]||"—");
+  const ents=S.summary.entities.map(e=>`<div style="font-size:12px;letter-spacing:.08em;padding:7px 12px;border:1px solid var(--fit-green-dim);color:var(--fit-green);background:var(--fit-surface-2)">${esc(e)}</div>`).join("")||"—";
+  return `<div style="padding:26px 34px"><div style="font-size:22px;letter-spacing:.1em;margin-bottom:18px">DOSSIER · ${esc(subj)}</div>
+    <div class="win" style="max-width:720px"><div class="win-h">Réseau — entités liées</div><div class="win-r"></div>
+    <div style="padding:16px;display:flex;flex-wrap:wrap;gap:10px">${ents}</div></div></div>`;
+}
+function viewArchive(){
+  const rows=S.archive.filter(a=>!S.query||((a.subject||"")+(a.id||"")).toLowerCase().includes(S.query.toLowerCase()))
+    .map(a=>`<div style="display:grid;grid-template-columns:110px 1fr 120px 110px 90px;padding:12px 18px;border-bottom:1px solid var(--fit-grid-line);font-size:12px;align-items:center">
+      <span style="color:var(--fit-sage)">${esc(a.id)}</span><span style="color:var(--fit-green);font-weight:700">${esc(a.subject)}</span><span style="color:var(--fit-text-muted)">${esc(a.channel||"")}</span><span style="color:var(--fit-text-muted)">${esc(a.date||"")}</span><span style="color:${a.statusColor||"var(--fit-text-muted)"};font-size:10px">● ${esc(a.status||"")}</span></div>`).join("")
+    ||`<div style="padding:16px;color:var(--fit-text-faint);font-size:12px">Aucun dossier archivé.</div>`;
+  return `<div style="padding:26px 34px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px;flex-wrap:wrap">
+      <div style="font-size:22px;letter-spacing:.1em">ARCHIVE DES DOSSIERS</div>
+      <input value="${esc(S.query)}" oninput="fitini.setQuery(this.value)" placeholder="RECHERCHER…" style="background:var(--fit-surface-3);border:1px solid var(--fit-border);color:var(--fit-green);font-size:12px;padding:8px 12px;outline:none;width:200px"/></div>
+    <div class="win"><div style="display:grid;grid-template-columns:110px 1fr 120px 110px 90px;padding:11px 18px;font-size:10px;letter-spacing:.14em;color:var(--fit-text-faint);border-bottom:1px solid var(--fit-border);background:var(--fit-titlebar)"><span>ID</span><span>SUJET</span><span>CANAL</span><span>DATE</span><span>STATUT</span></div>${rows}</div></div>`;
+}
+function viewAnalyze(){
+  return `<div style="padding:22px 28px"><div style="font-size:11px;letter-spacing:.2em;color:var(--fit-sage);margin-bottom:16px">INGESTION DE CORPUS — HORS-LIGNE</div>
+    <div class="win" style="max-width:640px"><div style="padding:30px;text-align:center">
+      <div style="font-size:34px;color:var(--fit-sage);margin-bottom:12px">⤒</div>
+      <div style="font-size:14px;margin-bottom:14px">Déposer un fichier à analyser</div>
+      <input type="file" onchange="fitini.upload(this.files[0])" style="color:var(--fit-text-muted);font-size:12px"/>
+      <div id="analyze-status" style="margin-top:16px;font-size:12px;color:var(--fit-text-muted)"></div>
+    </div></div></div>`;
+}
+function viewConfig(){
+  const tog=(k,label,hint)=>{const on=S.settings[k];return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--fit-grid-line)">
+    <div><div style="font-size:12px;color:var(--fit-text)">${esc(label)}</div><div style="font-size:10px;color:var(--fit-text-faint);margin-top:3px">${esc(hint)}</div></div>
+    <button onclick="fitini.toggleSetting('${k}')" style="width:40px;height:20px;border:1px solid ${on?"var(--fit-green)":"#2c3233"};background:${on?"rgba(56,239,125,.15)":"#0b0d0d"};position:relative;cursor:pointer;padding:0"><span style="position:absolute;top:1px;left:${on?"21px":"1px"};width:16px;height:16px;background:${on?"var(--fit-green)":"#4e5856"};transition:left .15s"></span></button></div>`;};
+  return `<div style="padding:26px 34px;max-width:680px"><div style="font-size:22px;letter-spacing:.1em;margin-bottom:20px">CONFIGURATION DU MOTEUR</div>
+    <div class="win"><div class="win-h">Moteur · hors-ligne déterministe</div><div class="win-r"></div>
+    ${tog("vad","Silero VAD","Gating voix (mode micro)")}${tog("diarize","Diarisation","Séparer les locuteurs")}${tog("autolock","Verrou automatique","Verrouiller à la corrélation")}${tog("redact","Masquer PII","Caviarder les identifiants")}</div></div>`;
 }
 
-function archiveScreen(){
-  const rows=state.sessions.map(a=>`<button data-sub="${esc((a.subject+" "+a.id).toLowerCase())}" onclick="openSession('${esc(a.id)}')" class="arow" style="width:100%;text-align:left;display:grid;grid-template-columns:90px 1fr 110px 110px 90px 90px;padding:13px 18px;border:none;border-bottom:1px solid var(--fit-grid-line);background:transparent;color:var(--fit-text);font-size:12px;cursor:pointer;align-items:center"><span style="color:var(--fit-sage)">${esc(a.id)}</span><span style="color:var(--fit-green);font-weight:700">${esc(a.subject)}</span><span style="color:var(--fit-text-muted)">${esc(a.channel)}</span><span style="color:var(--fit-text-muted)">${esc(a.date)}</span><span style="color:var(--fit-text-muted)">${esc(a.dur)}</span><span style="color:${a.statusColor};font-size:10px;letter-spacing:.1em">● ${esc(a.status)}</span></button>`).join("");
-  return `<div style="padding:28px 36px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px"><div style="font-size:22px;letter-spacing:.1em;color:var(--fit-text)">INTERCEPT ARCHIVE</div>
-      <div style="display:flex;align-items:center;gap:10px"><input id="archiveSearch" oninput="filterArchive()" placeholder="SEARCH…" style="background:var(--fit-surface-3);border:1px solid var(--fit-border);color:var(--fit-green);font-size:12px;letter-spacing:.1em;padding:8px 12px;outline:none;width:200px"/><span id="archiveCount" style="font-size:11px;color:var(--fit-text-muted);letter-spacing:.1em">${state.sessions.length} RECORDS</span></div></div>
-    <div style="border:1px solid var(--fit-border);background:var(--fit-surface)"><div style="display:grid;grid-template-columns:90px 1fr 110px 110px 90px 90px;padding:11px 18px;font-size:10px;letter-spacing:.14em;color:var(--fit-text-faint);border-bottom:1px solid var(--fit-border);background:var(--fit-titlebar)"><span>ID</span><span>SUBJECT</span><span>CHANNEL</span><span>DATE</span><span>DUR</span><span>STATUS</span></div><div id="archiveRows">${rows}</div></div>
-  </div>`;
+/* ---- terminal ---- */
+function viewTerminal(){
+  if(!S.termOpen) return "";
+  const lines=S.termLines.map(l=>`<div style="color:${l.c||"var(--fit-text-dim)"};white-space:pre-wrap">${esc(l.t)}</div>`).join("");
+  const guide=CMDS.map(c=>`${c.cmd}`).join(" · ");
+  return `<div style="position:fixed;left:0;right:0;bottom:0;height:260px;z-index:90;background:#07090a;border-top:1px solid var(--fit-green-dim);display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;padding:7px 14px;border-bottom:1px solid var(--fit-border);font-size:11px;letter-spacing:.1em;color:var(--fit-sage)"><span>TERMINAL DE COMMANDES — déterministe · hors-ligne</span><button onclick="fitini.toggleTerm()" style="background:none;border:none;color:var(--fit-text-faint);cursor:pointer">✕</button></div>
+    <div style="padding:4px 14px;font-size:10px;color:var(--fit-text-faint);border-bottom:1px solid var(--fit-grid-line)">${esc(guide)}</div>
+    <div id="term-out" style="flex:1;overflow:auto;padding:10px 14px;font-size:13px;line-height:1.5">${lines}</div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid var(--fit-border)"><span style="color:var(--fit-green)">▸</span>
+      <input id="term-in" onkeydown="fitini.termKey(event)" placeholder="chrono · cross A B · link &lt;entité&gt; · find &lt;mot&gt; · help" style="flex:1;background:transparent;border:none;outline:none;color:var(--fit-green);font-size:13px"/></div></div>`;
 }
-function filterArchive(){
-  const q=(document.getElementById("archiveSearch").value||"").toLowerCase();
-  let n=0;
-  document.querySelectorAll("#archiveRows .arow").forEach(el=>{
-    const show=!q||el.getAttribute("data-sub").includes(q);
-    el.style.display=show?"":"none"; if(show)n++;
+function viewCross(){
+  const opts=S.summary.entities.map(e=>`<option value="${esc(e)}">${esc(e)}</option>`).join("");
+  return `<div onclick="fitini.closeCross()" style="position:fixed;inset:0;z-index:95;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center">
+    <div onclick="event.stopPropagation()" class="win" style="width:360px"><div class="win-h">Croisement de sources</div><div class="win-r"></div>
+    <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+      <select id="crossA" style="background:var(--fit-surface-3);border:1px solid var(--fit-border);color:var(--fit-green);font-family:var(--mono);padding:8px">${opts}</select>
+      <select id="crossB" style="background:var(--fit-surface-3);border:1px solid var(--fit-border);color:var(--fit-green);font-family:var(--mono);padding:8px">${opts}</select>
+      <button class="primary" onclick="fitini.runCross()">CROISER →</button></div></div></div>`;
+}
+
+/* ================= FLUX / WS ================= */
+function startFlux(){
+  resetFlux(); S.started=true; S.streaming=true;
+  renderFluxCta(); renderAnalyzer();
+  const proto=location.protocol==="https:"?"wss:":"ws:";
+  const dom=[...S.domains].join(",");
+  ws=new WebSocket(`${proto}//${location.host}/ws/intercept?token=${encodeURIComponent(S.token||"")}&domains=${encodeURIComponent(dom)}`);
+  ws.onmessage=ev=>{const m=JSON.parse(ev.data);
+    if(m.type==="utterance") onUtterance(m);
+    else if(m.type==="complete"){ onComplete(m); }
+    else if(m.type==="error"){ S.streaming=false; renderAnalyzer(); }
+  };
+  ws.onclose=()=>{ S.streaming=false; if(S.screen==="intercept"){renderFluxCta();renderAnalyzer();} };
+  ws.onerror=()=>{ S.streaming=false; };
+}
+function resetFlux(){
+  if(ws){try{ws.close();}catch(e){}ws=null;}
+  S.started=S.done=S.streaming=false; S.lines=[]; S.frames=[]; S.detectedOrder=[];
+  S.rows=emptyRows(); S.cellOf={}; S.pairOf={}; S.hotCanon=null; S.arrow=null; S.flagQueue=[]; S.busyFlags=false;
+  S.summary={locked:null,leading:null,entities:[]}; S.relationships=[]; S.hypotheses=[]; S.timeline=[]; S.flags=[];
+}
+function onUtterance(m){
+  S.frames.push(m);
+  const line={ts:m.ts,speaker:m.speaker,segs:m.segs||[]};
+  S.lines.push(line);
+  // accumulate canonical state
+  S.summary=m.summary||S.summary; S.relationships=m.relationships||S.relationships;
+  S.hypotheses=m.hypotheses||S.hypotheses; S.timeline=m.timeline||S.timeline;
+  (m.alerts||[]).forEach(a=>S.flags.push({name:a.name,message:a.message,urgency:a.urgency,value:a.value}));
+  (m.new_entities||[]).forEach(e=>{if(!S.detectedOrder.includes(e))S.detectedOrder.push(e);});
+  buildMatrix();
+  if(S.screen==="intercept"){ renderTranscript(); renderMatrix(); renderSummary(); }
+  // flagged words -> sequential arrows
+  const alertVals=new Set((m.alerts||[]).map(a=>a.value).filter(Boolean));
+  const flagged=(m.segs||[]).filter(s=>s.label&&s.canonical&&(FLAG_LABELS.has((s.label||"").toUpperCase())||alertVals.has(s.canonical))).map(s=>s.canonical);
+  const uniq=[...new Set(flagged)];
+  if(uniq.length&&S.screen==="intercept"){ S.flagQueue.push(...uniq); pumpFlags(); }
+}
+function onComplete(m){
+  S.done=true; S.streaming=false;
+  if(m.report){ S.summary=m.report.summary||S.summary; S.relationships=m.report.relationships||S.relationships; S.timeline=m.report.timeline||S.timeline; }
+  if(S.screen==="intercept"){ renderFluxCta(); renderAnalyzer(); }
+}
+function buildMatrix(){
+  const rows=emptyRows(); const cell={}; const pair={};
+  S.relationships.forEach(([a,b])=>{ if(!pair[a]&&a!==b) pair[a]=b; });
+  let r=0; const placed=new Set();
+  for(const canon of S.detectedOrder){
+    if(r>=6) break;
+    if(placed.has(canon)) continue;
+    rows[r][0]=canon; cell[canon]=[r,0]; placed.add(canon);
+    const p=pair[canon];
+    if(p&&!placed.has(p)){ rows[r][1]=p; cell[p]=[r,1]; placed.add(p); }
+    r++;
+  }
+  S.rows=rows; S.cellOf=cell;
+}
+
+/* ---- sequential flag arrows (one at a time) ---- */
+function pumpFlags(){
+  if(S.busyFlags) return;
+  if(!S.flagQueue.length){ return; }
+  const canon=S.flagQueue.shift(); S.busyFlags=true;
+  setHot(canon);
+  drawArrow(canon,()=>{ S.busyFlags=false; setTimeout(pumpFlags,120); });
+}
+function setHot(canon){
+  S.hotCanon=canon;
+  document.querySelectorAll(".cell-hot").forEach(el=>el.classList.remove("cell-hot"));
+  const cc=S.cellOf[canon]; const cell=cc&&$("cell-"+cc[0]+"-"+cc[1]); if(cell)cell.classList.add("cell-hot");
+}
+function drawArrow(canon,done){
+  requestAnimationFrame(()=>{
+    const root=$("ingest"),layer=$("arrow-layer"); if(!root||!layer){done&&done();return;}
+    const spans=root.querySelectorAll('[data-ent="'+canon.replace(/"/g,"")+'"]');
+    const src=spans[spans.length-1]; const cc=S.cellOf[canon]; const cell=cc&&$("cell-"+cc[0]+"-"+cc[1]);
+    if(src)src.classList.add("kw-flash");
+    if(!src||!cell){ done&&done(); return; }
+    const rb=root.getBoundingClientRect(),s=src.getBoundingClientRect(),c=cell.getBoundingClientRect();
+    const x1=s.right-rb.left,y1=s.top-rb.top+s.height/2,x2=c.left-rb.left,y2=c.top-rb.top+c.height/2;
+    layer.innerHTML=`<defs><marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="var(--fit-sage)"/></marker></defs>
+      <path d="M${x1},${y1} L${x2},${y2}" stroke="var(--fit-sage)" stroke-width="1.6" stroke-dasharray="4,3" marker-end="url(#ah)" opacity="0" style="animation:fit-arrow .22s ease forwards"><animate attributeName="opacity" to="1" dur="0.2s" fill="freeze"/></path>`;
+    const path=layer.querySelector("path"); if(path)path.style.opacity="1";
+    setTimeout(()=>{ if(path){path.style.transition="opacity .26s";path.style.opacity="0";} setTimeout(()=>{layer.innerHTML="";done&&done();},300); },760);
   });
-  document.getElementById("archiveCount").textContent=n+" RECORDS";
 }
 
-function uploadScreen(){
-  const us=state.uploadState;
-  const title=us==="done"?"ANALYSIS COMPLETE":us==="analyzing"?"EXTRACTING INTEL":us==="uploading"?"DECODING AUDIO":"DROP AUDIO FILE TO ANALYZE";
-  const sub=us==="idle"?"WAV · MP3 · FLAC · OGG · max 2GB":(state.uploadFilename||"intercept.wav");
-  return `<div style="padding:28px 36px;display:grid;grid-template-columns:1fr 360px;gap:22px;align-items:start">
-    <div style="border:1px dashed var(--fit-border-strong);background:var(--fit-surface);padding:50px 30px;text-align:center;position:relative;overflow:hidden">
-      ${us==="uploading"||us==="analyzing"?`<div style="position:absolute;left:0;right:0;height:2px;background:var(--fit-green);box-shadow:0 0 12px var(--fit-green-glow);animation:fit-scan 1.8s linear infinite"></div>`:""}
-      <div style="font-size:40px;color:var(--fit-sage);margin-bottom:16px">⤒</div>
-      <div style="font-size:14px;letter-spacing:.1em;color:var(--fit-text);margin-bottom:8px">${title}</div>
-      <div style="font-size:11px;letter-spacing:.1em;color:var(--fit-text-muted);margin-bottom:24px">${esc(sub)}</div>
-      ${us==="idle"?`<button onclick="startUpload()" style="font-size:12px;letter-spacing:.14em;color:var(--fit-ink-on-green);background:var(--fit-green);border:none;padding:11px 24px;cursor:pointer">SELECT FILE</button>`:""}
-      ${us==="uploading"||us==="analyzing"?`<div style="max-width:420px;margin:0 auto"><div style="height:6px;background:var(--fit-surface-3);border:1px solid var(--fit-border);margin-bottom:10px"><div style="height:100%;width:${state.uploadPct}%;background:var(--fit-green);box-shadow:0 0 8px var(--fit-green-glow);transition:width .3s"></div></div><div style="font-size:11px;color:var(--fit-sage);letter-spacing:.14em">faster-whisper · ${esc(state.settings.model_label)}</div></div>`:""}
-      ${us==="done"?`<button onclick="goto('report')" style="font-size:12px;letter-spacing:.14em;color:var(--fit-ink-on-green);background:var(--fit-green);border:none;padding:11px 24px;cursor:pointer">VIEW REPORT →</button>`:""}
-    </div>
-    <div style="border:1px solid var(--fit-border);background:var(--fit-surface)">${titlebar("Analysis Queue")}
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--fit-grid-line);font-size:12px"><div><div style="color:var(--fit-text)">${esc(state.uploadFilename||"—")}</div><div style="color:var(--fit-text-faint);font-size:10px;margin-top:3px">queued upload</div></div><span style="color:${us==="done"?C.green:us==="idle"?C.muted:C.scan};font-size:10px;letter-spacing:.1em">${us==="done"?"DONE":us==="idle"?"IDLE":"ACTIVE"}</span></div>
-    </div>
-  </div>`;
-}
-
-function settingsScreen(){
-  const s=state.settings;
-  const toggleRow=(key,label,hint)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--fit-grid-line);font-size:13px"><div><div style="color:var(--fit-text)">${label}</div><div style="color:var(--fit-text-faint);font-size:10px;margin-top:3px">${hint}</div></div><button onclick="toggleSetting('${key}')" style="${toggleStyle(!!s[key])}"><span style="${knobStyle(!!s[key])}"></span></button></div>`;
-  const valueRow=(label,hint,val)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--fit-grid-line);font-size:13px"><div><div style="color:var(--fit-text)">${label}</div><div style="color:var(--fit-text-faint);font-size:10px;margin-top:3px">${hint}</div></div><span style="color:var(--fit-green);letter-spacing:.08em">${esc(val)}</span></div>`;
-  const group=(title,inner)=>`<div style="border:1px solid var(--fit-border);background:var(--fit-surface);margin-bottom:18px">${titlebar(title)}<div style="padding:6px 16px">${inner}</div></div>`;
-  return `<div style="padding:28px 36px;max-width:720px">
-    <div style="font-size:22px;letter-spacing:.1em;color:var(--fit-text);margin-bottom:22px">SOURCE CONFIGURATION</div>
-    ${group("Audio Source",valueRow("Input device","Capture interface","LIVE MIC · 48kHz")+valueRow("Sample window","VAD segment length","1.1s")+toggleRow("vad","Silero VAD","Voice-activity gating · THR "+esc(s.vad_threshold)))}
-    ${group("Transcription",valueRow("Model","faster-whisper",esc(s.model_label))+toggleRow("diarize","Speaker diarization","Separate multi-speaker channels")+valueRow("Language","Primary decode",esc((s.language||"en").toUpperCase())+" · auto"))}
-    ${group("Intel Engine",valueRow("NER model","spaCy pipeline","en_core_web_trf")+toggleRow("autolock","Auto-lock targets","Lock subjects/locations on correlation")+toggleRow("redact","Redact PII","Mask non-tactical identifiers (cash, jewellery)"))}
-    <div style="font-size:10px;letter-spacing:.1em;color:var(--fit-text-faint);line-height:1.7">Toggles persist server-side and apply to the next intercept. AUTO-LOCK off → subject stays unlocked. REDACT on → flagged terms masked in the live transcript.</div>
-  </div>`;
-}
-
-function alertModal(){
-  if(!state.alertOpen||!state.alert) return "";
-  const a=state.alert;
-  return `<div style="position:absolute;inset:0;z-index:70;background:rgba(11,13,13,.82);display:flex;align-items:center;justify-content:center">
-    <div style="width:460px;max-width:92vw;border:1px solid var(--fit-alert);background:var(--fit-surface);box-shadow:0 0 26px rgba(226,87,79,.3)">
-      <div style="background:#2a1a1a;border-bottom:1px solid var(--fit-alert);padding:9px 14px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;letter-spacing:.16em;color:var(--fit-alert)">◆ THREAT DETECTED</span><button onclick="closeAlert()" style="background:transparent;border:none;color:var(--fit-text-faint);cursor:pointer;font-size:13px">x</button></div>
-      <div style="height:2px;background:var(--fit-alert);animation:fit-pulse 1s infinite"></div>
-      <div style="padding:22px 20px">
-        <div style="font-size:10px;letter-spacing:.2em;color:var(--fit-text-muted);margin-bottom:8px">CLASS · ASSET MOVEMENT</div>
-        <div style="font-size:26px;letter-spacing:.08em;color:var(--fit-alert);font-weight:700;margin-bottom:6px">${esc(a.code)}</div>
-        <div style="font-size:13px;color:var(--fit-text-dim);line-height:1.5;margin-bottom:18px">${esc(a.detail)} Deadline entity <span style="color:var(--fit-green)">72 HOURS</span> correlated to subject <span style="color:var(--fit-green)">${esc(state.subject)}</span>.</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px"><div style="border:1px solid var(--fit-border);padding:12px 14px"><div style="font-size:10px;letter-spacing:.14em;color:var(--fit-text-muted);margin-bottom:6px">CONFIDENCE</div><div style="font-size:20px;color:var(--fit-alert)">${esc(a.confidence)}</div></div><div style="border:1px solid var(--fit-border);padding:12px 14px"><div style="font-size:10px;letter-spacing:.14em;color:var(--fit-text-muted);margin-bottom:6px">WINDOW</div><div style="font-size:20px;color:var(--fit-scanning)">${esc(a.window)}</div></div></div>
-        <div style="display:flex;gap:10px"><button onclick="closeAlert()" style="flex:1;font-size:12px;letter-spacing:.14em;color:var(--fit-text-muted);background:transparent;border:1px solid var(--fit-border);padding:12px;cursor:pointer">ACKNOWLEDGE</button><button onclick="escalate()" style="flex:1;font-size:12px;letter-spacing:.14em;color:#fff;background:var(--fit-alert);border:none;padding:12px;cursor:pointer">◆ ESCALATE NOW</button></div>
-      </div>
-    </div>
-  </div>`;
-}
-
-/* ---------------- render ---------------- */
-function mainContent(){
-  switch(state.screen){
-    case "standby": return standbyScreen();
-    case "intercept": return interceptScreen();
-    case "report": return reportScreen();
-    case "dossier": return dossierScreen();
-    case "archive": return archiveScreen();
-    case "upload": return uploadScreen();
-    case "settings": return settingsScreen();
-    default: return standbyScreen();
+/* ================= actions / terminal ================= */
+function addResult(title,body,sources){ S.results=[{id:Date.now()+Math.floor(Math.random()*1e4),title,body,sources},...S.results].slice(0,5); }
+function toReportThen(fn){ if(S.screen!=="report"){S.screen="report";render();setTimeout(fn,30);} else {fn();render();} }
+function doAction(a){
+  switch(a){
+    case "chrono": toReportThen(()=>addResult("Chronologie des faits",(S.timeline.filter(e=>e.kind!=="lead").length)+" faits ordonnés.","moteur · flux courant")); break;
+    case "graphe": toReportThen(()=>addResult("Graphe de relations",S.summary.entities.length+" entités · "+S.relationships.length+" liens.","moteur · corrélation")); break;
+    case "flags": toReportThen(()=>addResult("Anomalies",S.flags.length+" flag(s) détecté(s).","moteur · règles d'alerte")); break;
+    case "cross": S.crossOpen=true; render(); break;
+    case "filter": S.filterEnt=S.filterEnt?null:(S.summary.locked?"AMIRI":S.summary.entities[0]||null); render(); break;
   }
 }
-function render(){
-  if(state.screen!=="intercept") removeLeader();   // tear down the connector off-screen
-  if(state.screen==="login"){root.innerHTML=loginScreen();return;}
-  root.innerHTML=`<div style="display:grid;grid-template-rows:auto 1fr;height:100%">
-    ${topBar()}
-    <div style="display:grid;grid-template-columns:auto 1fr;min-height:0">
-      ${navRail()}
-      <main style="min-height:0;min-width:0;overflow:auto;position:relative">${mainContent()}</main>
-    </div>
-  </div><div id="modal-root">${alertModal()}</div>`;
-  if(leader) removeLeader();   // stale connector after a full re-render
-}
-// Targeted update during streaming — avoids rebuilding topbar/nav (the per-sentence blink).
-function updateIntercept(){
-  const tp=document.getElementById("transcript");
-  if(!tp){render();return;}
-  tp.innerHTML=transcriptInner();
-  tp.scrollTop=tp.scrollHeight;
-  const rl=document.getElementById("rail"); if(rl) rl.innerHTML=railInner();
-  const mr=document.getElementById("modal-root"); if(mr) mr.innerHTML=alertModal();
+function doCross(a,b){ toReportThen(()=>addResult("Croisement "+a+" × "+b, crossCount(a,b)+" passage(s) commun(s).","flux courant")); }
+function crossCount(a,b){ let n=0; S.frames.forEach(f=>{const ks=(f.segs||[]).filter(s=>s.canonical).map(s=>s.canonical);if(ks.includes(a)&&ks.includes(b))n++;}); return n; }
+function findCount(w){ let n=0; S.frames.forEach(f=>{(f.segs||[]).forEach(s=>{if((s.text||"").toLowerCase().includes(w.toLowerCase()))n++;});}); return n; }
+function linkList(key){ return S.relationships.filter(l=>l.includes(key)).map(l=>l.join("↔")); }
+
+function termPrint(t,c){ S.termLines.push({t,c:c||"var(--fit-text-dim)"}); const o=$("term-out"); if(o){o.innerHTML=S.termLines.map(l=>`<div style="color:${l.c};white-space:pre-wrap">${esc(l.t)}</div>`).join("");o.scrollTop=o.scrollHeight;} }
+function termExec(raw){
+  termPrint("▸ "+raw,"var(--fit-green)");
+  const parts=raw.split(/\s+/); const cmd=(parts[0]||"").toLowerCase(); const rest=parts.slice(1); const arg=rest.join(" ");
+  switch(cmd){
+    case "help": CMDS.forEach(c=>termPrint("  "+c.cmd.padEnd(16," ")+c.desc,"var(--fit-text-muted)")); break;
+    case "clear": S.termLines=[]; termPrint("",""); break;
+    case "chrono": doAction("chrono"); S.timeline.filter(e=>e.kind!=="lead").slice(0,12).forEach(t=>termPrint("  "+(t.t||"")+"  "+t.text)); break;
+    case "graphe": case "graph": doAction("graphe"); termPrint("  "+S.summary.entities.length+" entités · "+S.relationships.length+" liens"); break;
+    case "flags": case "flag": doAction("flags"); S.flags.forEach(f=>termPrint("  ["+(f.urgency||"")+"] "+f.name+(f.value?" "+f.value:"")+" — "+(f.message||""))); break;
+    case "cross": if(rest.length<2){termPrint("  usage : cross A B","var(--fit-alert)");break;} {const a=rest[0].toUpperCase(),b=rest.slice(1).join(" ").toUpperCase(); doCross(a,b); termPrint("  "+a+" × "+b+" — "+crossCount(a,b)+" commun(s)");} break;
+    case "link": if(!arg){termPrint("  usage : link <entité>","var(--fit-alert)");break;} {const k=arg.toUpperCase(); S.filterEnt=k; if(S.screen==="report")render(); const ls=linkList(k); termPrint("  relations : "+(ls.length?ls.join("  "):"aucune"));} break;
+    case "find": if(!arg){termPrint("  usage : find <mot>","var(--fit-alert)");break;} termPrint("  « "+arg+" » — "+findCount(arg)+" occurrence(s)"); break;
+    default: termPrint("  commande inconnue : "+cmd+"  (help)","var(--fit-alert)");
+  }
 }
 
-render();
+/* ================= handlers ================= */
+window.fitini={
+  toggleDomain:(id)=>{ S.domains.has(id)?S.domains.delete(id):S.domains.add(id); render(); },
+  enter:()=>{ if(!S.domains.size)return; S.screen="intercept"; render(); },
+  go:(k)=>{ S.screen=k; render(); if(k==="archive")loadArchive(); },
+  lock:()=>{ S.screen="selection"; render(); },
+  startFlux, focus:(c)=>{ S.filterEnt=S.filterEnt===c?null:c; if(S.screen==="report")render(); else {renderTranscript();renderMatrix();} },
+  action:doAction,
+  dropResult:(id)=>{ S.results=S.results.filter(r=>r.id!==id); render(); },
+  toggleTerm:()=>{ S.termOpen=!S.termOpen; render(); if(S.termOpen)setTimeout(()=>{const i=$("term-in");if(i)i.focus();},40); },
+  termKey:(e)=>{ if(e.key!=="Enter")return; const v=e.target.value.trim(); if(!v)return; e.target.value=""; termExec(v); },
+  closeCross:()=>{ S.crossOpen=false; render(); },
+  runCross:()=>{ const a=$("crossA").value,b=$("crossB").value; S.crossOpen=false; render(); doCross(a,b); },
+  setQuery:(v)=>{ S.query=v; const app=$("app"); /* light re-render of archive only */ render(); },
+  toggleSetting:(k)=>{ S.settings[k]=!S.settings[k]; render(); saveSettings(); },
+  upload:(file)=>uploadFile(file),
+};
+
+async function loadArchive(){ try{const r=await api("/api/sessions");S.archive=r.sessions||[];if(S.screen==="archive")render();}catch(e){} }
+async function saveSettings(){ try{await api("/api/settings",{method:"PUT",json:{settings:S.settings}});}catch(e){} }
+async function uploadFile(file){
+  const st=$("analyze-status"); if(!file){return;}
+  if(st)st.textContent="Analyse en cours…";
+  try{
+    const fd=new FormData(); fd.append("file",file);
+    const h={}; if(S.token)h["Authorization"]="Bearer "+S.token;
+    const dom=[...S.domains].join(",");
+    const r=await fetch("/api/analyze?domains="+encodeURIComponent(dom),{method:"POST",headers:h,body:fd});
+    const j=await r.json();
+    if(j.report){ S.summary=j.report.summary; S.relationships=j.report.relationships||[]; S.timeline=j.report.timeline||[]; S.flags=j.report.alerts||[]; S.lines=[]; }
+    if(st)st.textContent="Analyse terminée — "+(j.lines||0)+" lignes. Voir REPORT.";
+  }catch(e){ if(st)st.textContent="Échec de l'analyse."; }
+}
+
+/* ================= boot ================= */
+async function boot(){
+  // ensure a token (demo auth)
+  if(!S.token){
+    try{ const r=await api("/api/login",{method:"POST",json:{operator_id:"OP-7781",passphrase:"fitini"}});
+      S.token=r.token; localStorage.setItem("fitini_tok",S.token); }catch(e){}
+  }
+  try{ const d=await api("/api/domains"); if(d&&d.domains&&d.domains.length){ DOMAINS.length=0; d.domains.forEach(x=>DOMAINS.push(x)); } }catch(e){}
+  render();
+}
+boot();
 </script>
 </body>
 </html>
