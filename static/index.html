@@ -51,9 +51,9 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;op
 "use strict";
 const $=(id)=>document.getElementById(id);
 const esc=(s)=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const LABEL_CAT={PERSON:"person",SUBJECT:"person",ALIAS:"person",GENE:"person",LOCATION:"place",PLACE:"place",COORD:"place",
-  ORG:"org",SECTOR:"org",CODEWORD:"threat",ACTOR:"threat",THREAT:"threat",CVE:"threat",APT:"threat",MALWARE:"threat",ADR:"threat",
-  DEADLINE:"date",PHONE:"date",DATE:"date",ASSET:"asset",DRUG:"asset"};
+const LABEL_CAT={PERSON:"person",SUBJECT:"person",ALIAS:"person",GENE:"person",HANDLE:"person",SYMPTOM:"person",LOCATION:"place",PLACE:"place",COORD:"place",ANATOMY:"place",
+  ORG:"org",SECTOR:"org",IP:"org",IBAN:"org",MONEY:"org",MUTATION:"org",HISTORY:"org",CODEWORD:"threat",ACTOR:"threat",THREAT:"threat",CVE:"threat",APT:"threat",MALWARE:"threat",ADR:"threat",FLAG:"threat",HATE:"threat",LANDGRAB:"threat",VIOLENCE:"threat",ADVERSE_EFFECT:"threat",
+  DEADLINE:"date",PHONE:"date",DATE:"date",EMAIL:"date",URL:"date",DISINFO:"date",DURATION:"date",ASSET:"asset",DRUG:"asset",WATCH:"asset"};
 const FLAG_LABELS=new Set(["CODEWORD","ASSET","DEADLINE","COORD","PHONE","CVE","APT","MALWARE","ADR"]);
 const catOf=(l)=>LABEL_CAT[(l||"").toUpperCase()]||"org";
 const catColor=(c)=>`var(--cat-${c})`;
@@ -70,11 +70,11 @@ const CMDS=[
   {cmd:"link <entité>",desc:"relations d'une entité"},{cmd:"find <mot>",desc:"recherche plein-texte"},
   {cmd:"help · clear",desc:"guide · effacer"},
 ];
-const NAV=[["intercept","01 INTERCEPT"],["report","02 REPORT"],["dossier","03 DOSSIER"],["archive","04 ARCHIVE"],["analyze","05 ANALYZE"],["config","06 CONFIG"]];
+const NAV=[["intercept","01 INTERCEPT"],["analyze","02 ANALYSE"],["report","03 REPORT"],["dossier","04 DOSSIER"],["archive","05 ARCHIVE"],["config","06 CONFIG"]];
 
 const S={
   screen:"intercept", token:localStorage.getItem("fitini_tok")||null, opId:"OP-7781 // VESPER", clock:"--:--:-- UTC",
-  domain:"justice", domainsOpen:false,
+  domain:"justice", domainsOpen:false, subject:"",
   started:false, done:false, streaming:false,
   lines:[], frames:[], detectedOrder:[], rows:emptyRows(), cellOf:{}, hotCanon:null,
   summary:{locked:null,leading:null,entities:[]}, relationships:[], hypotheses:[], timeline:[], flags:[], locations:[],
@@ -118,6 +118,7 @@ function shell(main){
       </div>
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <span id="clock" style="font-size:11px;color:var(--fit-text-muted);letter-spacing:.1em">${esc(S.clock)}</span>
+        <input id="subject-in" value="${esc(S.subject)}" oninput="fitini.setSubject(this.value)" onkeydown="fitini.subjectKey(event)" placeholder="⌖ Sujet / sélecteurs…" title="Qui / quoi tu suis (séparés par des virgules). Entrée pour (re)lancer." style="background:var(--fit-surface-3);border:1px solid var(--fit-border-strong);color:var(--fit-green);font-size:10px;letter-spacing:.06em;padding:6px 10px;outline:none;width:190px"/>
         <div style="position:relative">
           <button onclick="fitini.toggleDomains()" style="font-size:10px;letter-spacing:.12em;color:${S.domainsOpen?"var(--fit-ink-on-green)":"var(--fit-sage)"};background:${S.domainsOpen?"var(--fit-green)":"transparent"};border:1px solid var(--fit-green-dim);padding:6px 10px">⌗ MODE : ${esc(dl)} ▾</button>
           ${S.domainsOpen?domainMenu():""}
@@ -343,7 +344,7 @@ function showAlert(a){ S.alert=a; const m=$("modal-root"); if(m)m.innerHTML=aler
 function startFlux(){
   resetFlux(); S.started=true; S.streaming=true; renderFluxCta(); renderAnalyzer();
   const proto=location.protocol==="https:"?"wss:":"ws:";
-  ws=new WebSocket(`${proto}//${location.host}/ws/intercept?token=${encodeURIComponent(S.token||"")}&domains=${encodeURIComponent(S.domain)}`);
+  ws=new WebSocket(`${proto}//${location.host}/ws/intercept?token=${encodeURIComponent(S.token||"")}&domains=${encodeURIComponent(S.domain)}&subject=${encodeURIComponent(S.subject||"")}`);
   ws.onmessage=ev=>{const m=JSON.parse(ev.data);
     if(m.type==="utterance")onUtterance(m); else if(m.type==="complete")onComplete(m); else if(m.type==="error"){S.streaming=false;renderAnalyzer();}};
   ws.onclose=()=>{S.streaming=false;if(S.screen==="intercept"){renderFluxCta();renderAnalyzer();}};
@@ -434,6 +435,8 @@ window.fitini={
   go:(k)=>{S.screen=k;S.domainsOpen=false;render();if(k==="archive")loadArchive();},
   lock:()=>{if(ws){try{ws.close();}catch(e){}} S.screen="intercept";S.domainsOpen=false;resetFlux();render();},
   toggleDomains:()=>{S.domainsOpen=!S.domainsOpen;render();},
+  setSubject:(v)=>{S.subject=v;},
+  subjectKey:(e)=>{if(e.key==="Enter"&&S.screen==="intercept")startFlux();},
   pickDomain:(id)=>{S.domain=id;S.domainsOpen=false;resetFlux();render();},
   openCross:()=>{S.domainsOpen=false;S.crossOpen=true;render();},
   startFlux,
@@ -453,7 +456,7 @@ async function loadArchive(){try{const r=await api("/api/sessions");S.archive=r.
 async function saveSettings(){try{await api("/api/settings",{method:"PUT",json:{settings:S.settings}});}catch(e){}}
 async function uploadFile(file){const st=$("analyze-status");if(!file)return;if(st)st.textContent="Analyse en cours…";
   try{const fd=new FormData();fd.append("file",file);const h={};if(S.token)h["Authorization"]="Bearer "+S.token;
-    const r=await fetch("/api/analyze?domains="+encodeURIComponent(S.domain),{method:"POST",headers:h,body:fd});const j=await r.json();
+    const r=await fetch("/api/analyze?domains="+encodeURIComponent(S.domain)+"&subject="+encodeURIComponent(S.subject||""),{method:"POST",headers:h,body:fd});const j=await r.json();
     if(j.report){S.summary=j.report.summary;S.relationships=j.report.relationships||[];S.timeline=j.report.timeline||[];S.flags=j.report.alerts||[];S.lines=[];}
     if(st)st.textContent="Analyse terminée — "+(j.lines||0)+" lignes. Voir REPORT.";
   }catch(e){if(st)st.textContent="Échec de l'analyse.";}}

@@ -157,13 +157,18 @@ def _parse_domains(domains_param: Optional[str]) -> List[str]:
     return ids or ["justice"]  # the UI always sends a selection; fall back defensively
 
 
-def _engine_for(domains_param: Optional[str]) -> CorrelationEngine:
+def _watchlist(subject_param: Optional[str]) -> List[str]:
+    return [t.strip() for t in (subject_param or "").split(",") if t.strip()]
+
+
+def _engine_for(domains_param: Optional[str], subject_param: Optional[str] = None) -> CorrelationEngine:
     ids = _parse_domains(domains_param)
     try:
         profile = packs.load_domains(ids)
     except Exception:
         profile = packs.load_domains(["justice"])
-    return CorrelationEngine(profile)
+    use_ner = os.getenv("FITINI_NER", "1") != "0"
+    return CorrelationEngine(profile, watchlist=_watchlist(subject_param), use_ner=use_ner)
 
 
 def _canonical_report(engine: CorrelationEngine, alerts: List[Dict[str, Any]],
@@ -248,8 +253,9 @@ def _persist_session(engine: CorrelationEngine, report: Dict[str, Any],
 @app.post("/api/analyze")
 async def analyze(file: UploadFile = File(...),
                   domains: Optional[str] = Query(None),
+                  subject: Optional[str] = Query(None),
                   _: str = Depends(require_auth)):
-    engine = _engine_for(domains)
+    engine = _engine_for(domains, subject)
     transcriber = AudioStreamTranscriber(CONFIG, use_microphone=False)
 
     suffix = os.path.splitext(file.filename or "")[1] or ".wav"
@@ -286,13 +292,14 @@ async def analyze(file: UploadFile = File(...),
 @app.websocket("/ws/intercept")
 async def websocket_intercept(websocket: WebSocket,
                               token: Optional[str] = Query(None),
-                              domains: Optional[str] = Query(None)):
+                              domains: Optional[str] = Query(None),
+                              subject: Optional[str] = Query(None)):
     if not auth_manager.validate(token):
         await websocket.close(code=4401)
         return
     await websocket.accept()
 
-    engine = _engine_for(domains)
+    engine = _engine_for(domains, subject)
     ids = _parse_domains(domains)
     use_mic = os.getenv("USE_MIC", "0") == "1"
     alerts: List[Dict[str, Any]] = []

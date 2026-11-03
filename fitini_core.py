@@ -83,19 +83,80 @@ def combine_profiles(profiles, name="Combined", pid="combined"):
     return combined
 
 
+
+# Generic selectors: run on EVERY stream, with no lexicon — so the engine tags
+# arbitrary subjects (emails, phones, IPs, money, dates, handles, coords, CVE, IBAN).
+GENERIC_SELECTORS = [
+    (r"[\w.+-]+@[\w-]+\.[\w.-]+", "EMAIL", "EMAIL"),
+    (r"https?://[^\s<>\"]+", "URL", "URL"),
+    (r"\bCVE-\d{4}-\d{4,7}\b", "CVE", "CVE"),
+    (r"\b(?:\d{1,3}\.){3}\d{1,3}\b", "IP", "IP"),
+    (r"(?:\+\d{1,3}[\s-]?)?\d{3}[\s-]?\d{3}[\s-]?\d{4}", "PHONE", "PHONE"),
+    (r"@[A-Za-z0-9_]{2,}", "HANDLE", "HANDLE"),
+    (r"-?\d{1,2}\.\d{3,},\s*-?\d{1,3}\.\d{3,}", "COORD", "COORD"),
+    (r"\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b", "IBAN", "IBAN"),
+    (r"[$\u20ac\u00a3]\s?\d[\d .,]*|\b\d[\d .,]*\s?(?:FCFA|CFA|USD|EUR|euros?|dollars?|milliards?|millions?)\b", "MONEY", "MONEY"),
+    (r"(?i)\b(?:janvier|f\u00e9vrier|mars|avril|mai|juin|juillet|ao\u00fbt|septembre|octobre|novembre|d\u00e9cembre|january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{0,2},?\s*\d{4}\b", "DATE", "DATE"),
+    (r"\b(?:19|20)\d{2}\b", "DATE", "DATE"),
+]
+
+
+# Optional spaCy NER (server-side). Lazy-loaded, cached, graceful fallback: if no
+# model is installed the engine runs on selectors+lexicon+watchlist only. This is
+# what makes extraction OPEN -- it finds PERSON/ORG/LOCATION/DATE even for names
+# never listed anywhere.
+_NLP = None
+_NLP_TRIED = False
+_SPACY_MAP = {"PER": "PERSON", "PERSON": "PERSON", "ORG": "ORG",
+              "LOC": "LOCATION", "GPE": "LOCATION", "FAC": "LOCATION",
+              "DATE": "DATE", "MONEY": "MONEY"}
+
+
+def _load_nlp():
+    global _NLP, _NLP_TRIED
+    if _NLP_TRIED:
+        return _NLP
+    _NLP_TRIED = True
+    try:
+        import spacy  # type: ignore
+        for model in ("fr_core_news_lg", "fr_core_news_md", "fr_core_news_sm",
+                      "en_core_web_trf", "en_core_web_sm"):
+            try:
+                _NLP = spacy.load(model)
+                break
+            except Exception:
+                continue
+    except Exception:
+        _NLP = None
+    return _NLP
+
 class CorrelationEngine:
-    def __init__(self, profile: Dict[str, Any]):
+    def __init__(self, profile: Dict[str, Any], watchlist=None, use_ner=True):
         self.profile = profile
-        self.labels = profile.get("labels", {})
-        self.lexicon = profile.get("lexicon", [])
-        self.patterns = [(re.compile(p["regex"]), p["label"], p.get("token"))
-                         for p in profile.get("patterns", [])]
+        self.labels = dict(profile.get("labels", {}))
+        self.lexicon = list(profile.get("lexicon", []))
+        # generic selectors (always on) + the profile's own regex patterns
+        pats = list(GENERIC_SELECTORS) + [(p["regex"], p["label"], p.get("token"))
+                                          for p in profile.get("patterns", [])]
+        self.patterns = [(re.compile(rx), lab, tok) for rx, lab, tok in pats]
         self.links = profile.get("links", [])
         self.hypotheses = profile.get("hypotheses", [])
-        self.alert_rules = profile.get("alert_rules", [])
-        # cooccurrence: {"labels": [...], "relation": "..."} — entities of these labels
-        # seen in the same utterance become relationship edges (who-relates-to-whom graph).
+        self.alert_rules = list(profile.get("alert_rules", []))
         self.cooccur = profile.get("cooccurrence")
+        self.use_ner = use_ner
+        # user watchlist: arbitrary subject / selector terms the user is after.
+        # They are tagged (label WATCH) and always flagged -> the system follows
+        # the user's subject, not a pre-baked keyword list.
+        self.watchlist = [str(t).strip() for t in (watchlist or []) if str(t).strip()]
+        if self.watchlist:
+            for t in self.watchlist:
+                self.lexicon.append({"pattern": t.lower(), "label": "WATCH",
+                                     "canonical": t.upper()})
+            self.alert_rules = self.alert_rules + [{
+                "name": "Sujet suivi", "on_label": "WATCH",
+                "message": "Terme de la liste de surveillance mentionne.",
+                "urgency": "URGENT"}]
+            self.labels.setdefault("WATCH", "#bfa6ea")
         self.reset()
 
     def reset(self) -> None:
@@ -127,6 +188,18 @@ class CorrelationEngine:
                 # label (e.g. "CVE") is what hypotheses/alerts match on by presence.
                 spans.append({"start": m.start(), "end": m.end(), "label": label,
                               "canonical": m.group(0), "display": m.group(0)})
+        if self.use_ner:
+            nlp = _load_nlp()
+            if nlp is not None:
+                try:
+                    for ent in nlp(text).ents:
+                        lab = _SPACY_MAP.get(ent.label_)
+                        if lab:
+                            spans.append({"start": ent.start_char, "end": ent.end_char,
+                                          "label": lab, "canonical": ent.text.strip().upper(),
+                                          "display": ent.text})
+                except Exception:
+                    pass
         spans.sort(key=lambda s: (s["start"], -(s["end"] - s["start"])))
         chosen, last_end = [], -1
         for s in spans:
