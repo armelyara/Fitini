@@ -294,10 +294,11 @@ function viewArchive(){
     ||`<div style="padding:16px;color:var(--fit-text-faint);font-size:12px">Aucun dossier archivé.</div>`;
   return `<div style="padding:26px 34px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px;flex-wrap:wrap"><div style="font-size:22px;letter-spacing:.1em">ARCHIVE DES DOSSIERS</div><input value="${esc(S.query)}" oninput="fitini.setQuery(this.value)" placeholder="RECHERCHER…" style="background:var(--fit-surface-3);border:1px solid var(--fit-border);color:var(--fit-green);font-size:12px;padding:8px 12px;outline:none;width:200px"/></div>
     <div class="win"><div style="display:grid;grid-template-columns:110px 1fr 120px 110px 90px;padding:11px 18px;font-size:10px;letter-spacing:.14em;color:var(--fit-text-faint);border-bottom:1px solid var(--fit-border);background:var(--fit-titlebar)"><span>ID</span><span>SUJET</span><span>CANAL</span><span>DATE</span><span>STATUT</span></div>${rows}</div></div>`;}
-function viewAnalyze(){ return `<div style="padding:22px 28px"><div style="font-size:11px;letter-spacing:.2em;color:var(--fit-sage);margin-bottom:16px">INGESTION DE CORPUS — HORS-LIGNE</div>
+function viewAnalyze(){ return `<div style="padding:22px 28px"><div style="font-size:11px;letter-spacing:.2em;color:var(--fit-sage);margin-bottom:16px">INGESTION — ENREGISTREMENT / NOTE VOCALE · HORS-LIGNE</div>
   <div class="win" style="max-width:640px"><div style="padding:30px;text-align:center"><div style="font-size:34px;color:var(--fit-sage);margin-bottom:12px">⤒</div>
-    <div style="font-size:14px;margin-bottom:14px">Déposer un fichier à analyser</div>
-    <input type="file" onchange="fitini.upload(this.files[0])" style="color:var(--fit-text-muted);font-size:12px"/>
+    <div style="font-size:14px;margin-bottom:6px">Déposer un enregistrement, une note vocale ou un texte</div>
+    <div style="font-size:11px;color:var(--fit-text-muted);margin-bottom:16px">WAV · MP3 · M4A · OGG · TXT — transcrit puis analysé, hors-ligne</div>
+    <input type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.txt" onchange="fitini.upload(this.files[0])" style="color:var(--fit-text-muted);font-size:12px"/>
     <div id="analyze-status" style="margin-top:16px;font-size:12px;color:var(--fit-text-muted)"></div></div></div></div>`;}
 function viewConfig(){ const tog=(k,label,hint)=>{const on=S.settings[k];
   return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--fit-grid-line)"><div><div style="font-size:12px">${esc(label)}</div><div style="font-size:10px;color:var(--fit-text-faint);margin-top:3px">${esc(hint)}</div></div>
@@ -361,9 +362,13 @@ function onUtterance(m){
   buildMatrix();
   if(S.screen==="intercept"){renderTranscript();renderMatrix();renderSummary();}
   const av=new Set((m.alerts||[]).map(a=>a.value).filter(Boolean));
-  // An arrow fires for every keyword shown this line that has a matrix cell (plus any
-  // alert value / high-interest label) -> the connector travels to its cell, one at a time.
-  const flagged=[...new Set((m.segs||[]).filter(s=>s.label&&s.canonical&&(S.cellOf[s.canonical]||FLAG_LABELS.has((s.label||"").toUpperCase())||av.has(s.canonical))).map(s=>s.canonical))];
+  // The ENGINE decides which words fired a rule / newly satisfied a hypothesis criterion
+  // this frame (m.flag_canonicals). Only those draw an arrow -> logic, not decoration.
+  // Fallback heuristic only if the server did not send the field.
+  const flagged=(Array.isArray(m.flag_canonicals)
+    ? m.flag_canonicals
+    : [...new Set((m.segs||[]).filter(s=>s.label&&s.canonical&&(FLAG_LABELS.has((s.label||"").toUpperCase())||av.has(s.canonical))).map(s=>s.canonical))]
+  ).filter(c=>S.cellOf[c]);
   if(flagged.length&&S.screen==="intercept"){S.flagQueue.push(...flagged);pumpFlags();}
   // raise the threat modal once per distinct urgent alert, after its arrow has played
   const urg=(m.alerts||[]).find(a=>(a.urgency||"").toUpperCase()==="URGENT"&&!S.alertedKeys.has((a.name||"")+"|"+(a.value||"")));

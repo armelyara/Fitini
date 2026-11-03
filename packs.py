@@ -60,3 +60,23 @@ DOMAIN_CATALOG = [
 def domain_catalog():
     """UI-facing list of selectable domains (id, name, desc)."""
     return DOMAIN_CATALOG
+
+
+# Per-domain demo scenario (the stream the live flux replays for that domain)
+DEMO_PACK = {
+    "justice": "investigation/intercept",
+    "osint":   "investigation/social",
+    "cti":     "cybersecurity/cti",
+    "pharma":  "healthcare/pharmacovigilance",
+}
+
+
+def demo_lines(domain_ids):
+    """Stream lines to replay for the selected domain(s) in simulation mode."""
+    for d in domain_ids:
+        name = DEMO_PACK.get(d)
+        if name:
+            pack = _load_pack(name)
+            if pack.get("stream_lines"):
+                return pack["stream_lines"]
+    return []

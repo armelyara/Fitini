@@ -27,6 +27,8 @@ runs, replaying the scripted stream. Set USE_MIC=1 for live microphone capture
 
 from __future__ import annotations
 
+import asyncio
+
 import json
 import os
 import tempfile
@@ -183,6 +185,14 @@ def _canonical_report(engine: CorrelationEngine, alerts: List[Dict[str, Any]],
     }
 
 
+async def _sim_stream(domain_ids):
+    """Yield the selected domain's demo scenario, paced like a live stream."""
+    interval = CONFIG.get("pipeline", {}).get("simulation_interval_seconds", 1.1)
+    for ln in packs.demo_lines(domain_ids):
+        await asyncio.sleep(interval)
+        yield {"ts": ln.get("ts"), "text": ln["text"], "speaker": ln.get("speaker")}
+
+
 def _flag_canonicals(p):
     """Words that fired a rule THIS frame: an entity (or a spoken word linked to one)
     that triggered an alert, or that newly satisfied a hypothesis criterion. The UI
@@ -255,9 +265,9 @@ async def analyze(file: UploadFile = File(...),
                 alerts += r.get("alerts", [])
                 count += 1
         except Exception:
-            # No Whisper / unsupported file here: fall back to the scripted stream.
-            for line in CONFIG.get("simulated_intercept", []):
-                r = engine.analyze_utterance(line["text"], line["ts"])
+            # No Whisper / unsupported file here: fall back to the domain's demo stream.
+            for line in packs.demo_lines(_parse_domains(domains)):
+                r = engine.analyze_utterance(line["text"], line.get("ts"), line.get("speaker"))
                 alerts += r.get("alerts", [])
                 count += 1
     finally:
@@ -283,13 +293,15 @@ async def websocket_intercept(websocket: WebSocket,
     await websocket.accept()
 
     engine = _engine_for(domains)
+    ids = _parse_domains(domains)
     use_mic = os.getenv("USE_MIC", "0") == "1"
-    transcriber = AudioStreamTranscriber(CONFIG, use_microphone=use_mic)
     alerts: List[Dict[str, Any]] = []
+    source = (AudioStreamTranscriber(CONFIG, use_microphone=True).stream_transcriptions()
+              if use_mic else _sim_stream(ids))
 
     try:
-        async for utt in transcriber.stream_transcriptions():
-            payload = engine.analyze_utterance(utt["text"], utt.get("ts"))
+        async for utt in source:
+            payload = engine.analyze_utterance(utt["text"], utt.get("ts"), utt.get("speaker"))
             payload["type"] = "utterance"
             payload["flag_canonicals"] = _flag_canonicals(payload)
             alerts += payload.get("alerts", [])

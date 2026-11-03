@@ -4,57 +4,168 @@
   "name": "Cyber Threat Intelligence · Attack Correlation",
   "stream": "text",
   "labels": {
-    "APT": "#e2574f", "MALWARE": "#d8b24a", "CVE": "#e2574f",
-    "IP": "#78a890", "TTP": "#38ef7d"
+    "APT": "#e2574f",
+    "MALWARE": "#d8b24a",
+    "CVE": "#e2574f",
+    "IP": "#78a890",
+    "TTP": "#38ef7d"
   },
   "patterns": [
-    { "regex": "CVE-\\d{4}-\\d{4,7}", "label": "CVE", "token": "CVE" },
-    { "regex": "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b", "label": "IP", "token": "IP" }
+    {
+      "regex": "CVE-\\d{4}-\\d{4,7}",
+      "label": "CVE",
+      "token": "CVE"
+    },
+    {
+      "regex": "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b",
+      "label": "IP",
+      "token": "IP"
+    }
   ],
   "lexicon": [
-    { "pattern": "phishing", "label": "TTP", "canonical": "PHISHING" },
-    { "pattern": "spear-phishing", "label": "TTP", "canonical": "PHISHING" },
-    { "pattern": "lateral movement", "label": "TTP", "canonical": "LATERAL_MOVEMENT" },
-    { "pattern": "apt28", "label": "APT", "canonical": "APT28" },
-    { "pattern": "fancy bear", "label": "APT", "canonical": "APT28" },
-    { "pattern": "lazarus", "label": "APT", "canonical": "LAZARUS" },
-    { "pattern": "cobalt strike", "label": "MALWARE", "canonical": "COBALT_STRIKE" },
-    { "pattern": "mimikatz", "label": "MALWARE", "canonical": "MIMIKATZ" }
+    {
+      "pattern": "phishing",
+      "label": "TTP",
+      "canonical": "PHISHING"
+    },
+    {
+      "pattern": "spear-phishing",
+      "label": "TTP",
+      "canonical": "PHISHING"
+    },
+    {
+      "pattern": "lateral movement",
+      "label": "TTP",
+      "canonical": "LATERAL_MOVEMENT"
+    },
+    {
+      "pattern": "apt28",
+      "label": "APT",
+      "canonical": "APT28"
+    },
+    {
+      "pattern": "fancy bear",
+      "label": "APT",
+      "canonical": "APT28"
+    },
+    {
+      "pattern": "lazarus",
+      "label": "APT",
+      "canonical": "LAZARUS"
+    },
+    {
+      "pattern": "cobalt strike",
+      "label": "MALWARE",
+      "canonical": "COBALT_STRIKE"
+    },
+    {
+      "pattern": "mimikatz",
+      "label": "MALWARE",
+      "canonical": "MIMIKATZ"
+    }
   ],
   "links": [
-    { "when": "APT28", "add": "GRU (RU)", "relation": "attributed to", "category": "ACTOR" }
+    {
+      "when": "APT28",
+      "add": "GRU (RU)",
+      "relation": "attributed to",
+      "category": "ACTOR"
+    }
   ],
   "hypotheses": [
     {
-      "name": "Campaign attribution: APT28 intrusion", "code": "ATT&CK", "lock_threshold": 4,
+      "name": "Campaign attribution: APT28 intrusion",
+      "code": "ATT&CK",
+      "lock_threshold": 4,
       "criteria": [
-        { "entity": "APT28", "weight": 2 },
-        { "entity": "PHISHING", "weight": 1 },
-        { "entity": "CVE", "weight": 1 },
-        { "entity": "COBALT_STRIKE", "weight": 1 },
-        { "entity": "MIMIKATZ", "weight": 1 },
-        { "entity": "IP", "weight": 1 }
+        {
+          "entity": "APT28",
+          "weight": 2
+        },
+        {
+          "entity": "PHISHING",
+          "weight": 1
+        },
+        {
+          "entity": "CVE",
+          "weight": 1
+        },
+        {
+          "entity": "COBALT_STRIKE",
+          "weight": 1
+        },
+        {
+          "entity": "MIMIKATZ",
+          "weight": 1
+        },
+        {
+          "entity": "IP",
+          "weight": 1
+        }
       ]
     },
     {
-      "name": "Campaign attribution: Lazarus", "code": "ATT&CK", "lock_threshold": 4,
+      "name": "Campaign attribution: Lazarus",
+      "code": "ATT&CK",
+      "lock_threshold": 4,
       "criteria": [
-        { "entity": "LAZARUS", "weight": 2 },
-        { "entity": "PHISHING", "weight": 1 },
-        { "entity": "CVE", "weight": 1 }
+        {
+          "entity": "LAZARUS",
+          "weight": 2
+        },
+        {
+          "entity": "PHISHING",
+          "weight": 1
+        },
+        {
+          "entity": "CVE",
+          "weight": 1
+        }
       ]
     }
   ],
   "alert_rules": [
-    { "name": "Active exploitation chain", "all_of": ["CVE", "COBALT_STRIKE"],
+    {
+      "name": "Active exploitation chain",
+      "all_of": [
+        "CVE",
+        "COBALT_STRIKE"
+      ],
       "message": "Known-CVE exploitation + post-exploitation C2 tooling referenced together — active intrusion likely.",
-      "urgency": "HIGH" }
+      "urgency": "HIGH"
+    },
+    {
+      "name": "Known vulnerability referenced",
+      "on_label": "CVE",
+      "message": "Known CVE referenced — check exposure/patch status.",
+      "urgency": "HIGH"
+    }
   ],
   "stream_lines": [
-    { "ts": "T0", "speaker": "REPORT", "text": "The incident began with a spear-phishing email delivering a malicious attachment." },
-    { "ts": "T1", "speaker": "REPORT", "text": "Analysts attribute the activity to APT28 based on infrastructure overlap." },
-    { "ts": "T2", "speaker": "REPORT", "text": "The payload exploited CVE-2023-23397 for privilege escalation." },
-    { "ts": "T3", "speaker": "REPORT", "text": "Post-exploitation used Cobalt Strike beacons calling back to 185.220.101.47." },
-    { "ts": "T4", "speaker": "REPORT", "text": "Lateral movement leveraged Mimikatz to harvest credentials." }
+    {
+      "ts": "T0",
+      "speaker": "REPORT",
+      "text": "The incident began with a spear-phishing email delivering a malicious attachment."
+    },
+    {
+      "ts": "T1",
+      "speaker": "REPORT",
+      "text": "Analysts attribute the activity to APT28 based on infrastructure overlap."
+    },
+    {
+      "ts": "T2",
+      "speaker": "REPORT",
+      "text": "The payload exploited CVE-2023-23397 for privilege escalation."
+    },
+    {
+      "ts": "T3",
+      "speaker": "REPORT",
+      "text": "Post-exploitation used Cobalt Strike beacons calling back to 185.220.101.47."
+    },
+    {
+      "ts": "T4",
+      "speaker": "REPORT",
+      "text": "Lateral movement leveraged Mimikatz to harvest credentials."
+    }
   ]
 }
