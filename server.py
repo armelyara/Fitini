@@ -183,6 +183,38 @@ def _canonical_report(engine: CorrelationEngine, alerts: List[Dict[str, Any]],
     }
 
 
+def _flag_canonicals(p):
+    """Words that fired a rule THIS frame: an entity (or a spoken word linked to one)
+    that triggered an alert, or that newly satisfied a hypothesis criterion. The UI
+    draws a flag arrow only for these -- engine logic, not decoration."""
+    segs = p.get("segs", [])
+    shown = [s["canonical"] for s in segs if s.get("canonical")]
+    newset = set(p.get("new_entities", []))
+    interest = set()
+    for a in p.get("alerts", []):
+        val = a.get("value")
+        if val:
+            for s in segs:
+                if s.get("canonical") and s.get("text") == val:
+                    interest.add(s["canonical"])
+        for e in (a.get("all_of") or []):
+            interest.add(e)
+    for h in p.get("hypotheses", []):
+        for e in (h.get("present") or []):
+            if e in newset:
+                interest.add(e)
+    linked = set()
+    for pair in p.get("relationships", []):
+        if len(pair) >= 2:
+            a, b = pair[0], pair[1]
+            if a in interest:
+                linked.add(b)
+            if b in interest:
+                linked.add(a)
+    out = [c for c in shown if c in interest or c in linked]
+    return list(dict.fromkeys(out))
+
+
 def _persist_session(engine: CorrelationEngine, report: Dict[str, Any],
                      channel: str, dur: str) -> str:
     locked = engine.locked
@@ -259,6 +291,7 @@ async def websocket_intercept(websocket: WebSocket,
         async for utt in transcriber.stream_transcriptions():
             payload = engine.analyze_utterance(utt["text"], utt.get("ts"))
             payload["type"] = "utterance"
+            payload["flag_canonicals"] = _flag_canonicals(payload)
             alerts += payload.get("alerts", [])
             await websocket.send_json(payload)
 
