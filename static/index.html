@@ -74,7 +74,7 @@ const NAV=[["intercept","01 INTERCEPT"],["analyze","02 ANALYSE"],["report","03 R
 
 const S={
   screen:"intercept", token:localStorage.getItem("fitini_tok")||null, opId:"OPÉRATEUR", clock:"--:--:-- UTC",
-  domain:"justice", domainsOpen:false, subject:"",
+  domain:"justice", domainsOpen:false, subject:"", interceptSource:"", micMode:false,
   started:false, done:false, streaming:false,
   lines:[], frames:[], detectedOrder:[], rows:emptyRows(), cellOf:{}, hotCanon:null,
   summary:{locked:null,leading:null,entities:[]}, relationships:[], hypotheses:[], timeline:[], flags:[], locations:[],
@@ -84,7 +84,7 @@ const S={
   crossOpen:false, query:"", archive:[], settings:{vad:true,diarize:true,redact:false,autolock:true},
 };
 let ws=null;
-function emptyRows(){return [["",""],["",""],["",""],["",""],["",""],["",""]];}
+function emptyRows(){return [];}
 
 /* ---------------- api ---------------- */
 async function api(path,opts={}){
@@ -104,7 +104,7 @@ function win(title,body,extra){
 }
 function render(){
   $("app").innerHTML=shell(content());
-  if(S.screen==="intercept"){ interceptMount(); maybeAutostart(); }
+  if(S.screen==="intercept"){ interceptMount(); }
   if(S.termOpen) setTimeout(()=>{const i=$("term-in");if(i)i.focus();},30);
 }
 function shell(main){
@@ -167,7 +167,7 @@ function content(){
 
 /* ---- INTERCEPT ---- */
 function viewIntercept(){
-  const matrix=`<div id="matrix" style="display:grid;grid-template-columns:1fr 1fr"></div>`;
+  const matrix=`<div id="matrix" style="display:grid;grid-template-columns:1fr 1fr;max-height:300px;overflow:auto"></div>`;
   const summary=`<div id="summary" style="padding:14px 16px"></div>`;
   const analyzer=`<div id="analyzer" style="padding:13px 16px;display:flex;flex-direction:column;gap:10px"></div>`;
   return `<div id="ingest" style="position:relative;min-height:100%;padding:22px 28px">
@@ -191,7 +191,10 @@ function viewIntercept(){
 function interceptMount(){ renderMatrix();renderSummary();renderAnalyzer();renderTranscript();renderFluxCta(); }
 function maybeAutostart(){ if(!S.started&&!S.done) startFlux(); }
 function renderFluxCta(){ const el=$("flux-cta"); if(!el)return;
-  if(!S.started) el.innerHTML=`<div style="margin:24px auto;text-align:center"><div style="font-size:10px;letter-spacing:.28em;color:var(--fit-sage);margin-bottom:14px">EN ATTENTE DU SIGNAL</div><button class="primary" onclick="fitini.startFlux()">▶ LANCER LE FLUX</button></div>`;
+  if(!S.started) el.innerHTML=`<div style="margin:24px auto;text-align:center">
+    <div style="font-size:10px;letter-spacing:.28em;color:var(--fit-sage);margin-bottom:14px">ÉCOUTE D'UNE CONVERSATION EN DIRECT</div>
+    <button class="primary" onclick="fitini.listen()">▶ ÉCOUTER (micro)</button>
+    <div id="int-up" style="font-size:11px;color:var(--fit-text-muted);margin-top:12px;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.5">L'analyse démarre automatiquement dès l'écoute. Pour un fichier / enregistrement, utilise <b style="color:var(--fit-sage)">ANALYSE</b>.</div></div>`;
   else if(S.streaming) el.innerHTML=`<div style="color:var(--fit-sage);font-size:15px">▌<span style="animation:fit-blink 1s infinite"> écoute…</span></div>`;
   else el.innerHTML="";
 }
@@ -210,9 +213,9 @@ function lineHtml(ln){
     <span style="font-size:11px;letter-spacing:.06em;color:${spkColor}">${esc(ln.speaker||"")}</span>
     <div style="font-size:15px;line-height:1.5;color:var(--fit-text-dim)">${segs}</div></div>`;
 }
-function renderMatrix(){ const el=$("matrix"); if(!el)return; let h="";
-  for(let r=0;r<6;r++)for(let c=0;c<2;c++){ const v=S.rows[r][c]; const hot=c===0&&v&&v===S.hotCanon;
-    h+=`<div id="cell-${r}-${c}" class="${hot?"cell-hot":""}" style="border:1px solid var(--fit-grid-line);min-height:44px;display:flex;align-items:center;padding:0 12px;font-size:12px;letter-spacing:.05em;color:${v?"var(--fit-green)":"var(--fit-text-faint)"}">${esc(v||"—")}</div>`;}
+function renderMatrix(){ const el=$("matrix"); if(!el)return; let h=""; const n=Math.max(S.rows.length,1);
+  for(let r=0;r<n;r++)for(let c=0;c<2;c++){ const v=(S.rows[r]||["",""])[c]; const hot=c===0&&v&&v===S.hotCanon;
+    h+=`<div id="cell-${r}-${c}" class="${hot?"cell-hot":""}" style="border:1px solid var(--fit-grid-line);min-height:40px;display:flex;align-items:center;padding:0 12px;font-size:12px;letter-spacing:.05em;color:${v?"var(--fit-green)":"var(--fit-text-faint)"}">${esc(v||"—")}</div>`;}
   el.innerHTML=h;
 }
 function renderSummary(){ const el=$("summary"); if(!el)return;
@@ -233,6 +236,30 @@ function renderAnalyzer(){ const el=$("analyzer"); if(!el)return;
   const row1=`<div style="display:flex;justify-content:space-between;align-items:center"><span style="display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.12em;color:${col}"><span style="width:8px;height:8px;border-radius:50%;background:${col}"></span>${lab}</span>${right}</div>`;
   const row2=S.done?`<button class="actbtn" style="align-self:flex-start" onclick="fitini.startFlux()">↻ REPLAY</button>`:"";
   el.innerHTML=row1+row2;
+}
+
+/* ---- deterministic brief (no LLM, source-traced) ---- */
+function buildBrief(){
+  const L=[]; const dom=(S.domain||"").toUpperCase();
+  const ents=S.summary.entities||[], rels=S.relationships||[], flags=S.flags||[], hyps=S.hypotheses||[];
+  const tl=(S.timeline||[]).filter(e=>e.kind!=="lead");
+  L.push("RAPPORT DE SYNTHÈSE — FITINI  (déterministe · tracé aux sources)");
+  L.push("Domaine(s) : "+dom+"   ·   Généré : "+new Date().toLocaleString());
+  if(S.subject) L.push("Sujet suivi : "+S.subject);
+  L.push("");
+  L.push("SYNTHÈSE");
+  L.push("- "+ents.length+" entité(s) extraite(s), "+rels.length+" lien(s) de corrélation, "+flags.length+" signal(aux) relevé(s).");
+  if(ents.length) L.push("- Entités : "+ents.join(", ")+".");
+  if(S.summary.locked) L.push("- Hypothèse verrouillée : "+S.summary.locked+".");
+  L.push("");
+  if(hyps.length){ L.push("HYPOTHÈSES"); hyps.slice(0,6).forEach(h=>L.push("- "+h.name+"  (confiance "+((h.confidence||0).toFixed(2))+")"+((h.present&&h.present.length)?"  [critères : "+h.present.join(", ")+"]":""))); L.push(""); }
+  if(rels.length){ L.push("RÉSEAU DE RELATIONS"); rels.forEach(r=>L.push("- "+r[0]+" — "+r[1])); L.push(""); }
+  if(tl.length){ L.push("CHRONOLOGIE DES FAITS"); tl.forEach(e=>L.push("- "+(e.t||"")+"  "+e.text+(e.detail?" ("+e.detail+")":"")+(e.source?"   [source : "+e.source+"]":""))); L.push(""); }
+  if(flags.length){ L.push("SIGNAUX / ANOMALIES"); flags.forEach(f=>L.push("- ["+(f.urgency||"")+"] "+f.name+(f.value?" · "+f.value:"")+" — "+(f.message||""))); L.push(""); }
+  const src=new Set(); tl.forEach(e=>{if(e.source)src.add(e.source);});
+  if(src.size){ L.push("SOURCES"); [...src].forEach(s=>L.push("- "+s)); L.push(""); }
+  L.push("— Rapport déterministe : il organise et trace les éléments extraits, il n'émet pas de jugement. Vérifier avant d'agir.");
+  return L.join("\n");
 }
 
 /* ---- REPORT ---- */
@@ -263,6 +290,9 @@ function viewReport(){
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--fit-border)">
       <span style="font-size:10px;letter-spacing:.18em;color:var(--fit-text-faint)">ACTIONS</span>${acts}
       <span style="margin-left:auto;font-size:10px;color:var(--fit-text-faint)">${esc(S.domain.toUpperCase())}</span></div>
+    <div style="margin-bottom:20px">${win("Rapport de synthèse (déterministe)",`<div style="padding:12px 16px">
+      <div style="display:flex;gap:8px;margin-bottom:10px"><button class="actbtn" onclick="fitini.copyBrief()">⧉ Copier</button><button class="actbtn" onclick="fitini.downloadBrief()">⭳ Télécharger .txt</button></div>
+      <pre style="white-space:pre-wrap;font-size:12px;line-height:1.55;color:var(--fit-text-dim);margin:0;max-height:360px;overflow:auto">${esc(buildBrief())}</pre></div>`)}</div>
     <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:20px;align-items:start">
       ${win("Corpus · Transcription",`<div style="padding:14px 16px;max-height:560px;overflow:auto;display:flex;flex-direction:column;gap:11px">${wsLines}</div>`)}
       <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
@@ -274,14 +304,14 @@ function viewReport(){
       </div></div></div>`;
 }
 function graphSvg(){
-  const nodes=S.summary.entities.slice(0,8); if(!nodes.length)return `<div style="color:var(--fit-text-faint);font-size:12px">—</div>`;
-  const cx=160,cy=120,R=90,pos={};
+  const nodes=S.summary.entities.slice(0,24); if(!nodes.length)return `<div style="color:var(--fit-text-faint);font-size:12px">—</div>`;
+  const many=nodes.length>12,cx=160,cy=130,R=many?118:90,rad=nodes.length>16?8:(many?10:14),fs=nodes.length>16?6:7,pos={};
   nodes.forEach((n,i)=>{const a=-Math.PI/2+i*2*Math.PI/nodes.length;pos[n]={x:cx+R*Math.cos(a),y:cy+R*Math.sin(a)};});
   const edges=S.relationships.filter(([a,b])=>pos[a]&&pos[b]).map(([a,b])=>{const hot=S.filterEnt&&(S.filterEnt===a||S.filterEnt===b);
     return `<line x1="${pos[a].x}" y1="${pos[a].y}" x2="${pos[b].x}" y2="${pos[b].y}" stroke="var(--fit-sage)" stroke-width="1" stroke-dasharray="3,3" opacity="${hot?.9:.4}"></line>`;}).join("");
   const circ=nodes.map(n=>{const foc=S.filterEnt===n;const sh=n.length>8?n.slice(0,7)+"…":n;
-    return `<g onclick="fitini.focus('${esc(n)}')" style="cursor:pointer"><circle cx="${pos[n].x}" cy="${pos[n].y}" r="${foc?18:14}" fill="var(--fit-surface-3)" stroke="var(--fit-green)" stroke-width="${foc?2.4:1.3}"></circle><text x="${pos[n].x}" y="${pos[n].y+3}" text-anchor="middle" font-size="8" fill="var(--fit-green)">${esc(sh)}</text></g>`;}).join("");
-  return `<svg viewBox="0 0 320 240" style="width:100%;height:auto;display:block">${edges}${circ}</svg>`;
+    return `<g onclick="fitini.focus('${esc(n)}')" style="cursor:pointer"><circle cx="${pos[n].x}" cy="${pos[n].y}" r="${foc?rad+4:rad}" fill="var(--fit-surface-3)" stroke="var(--fit-green)" stroke-width="${foc?2.4:1.3}"></circle><text x="${pos[n].x}" y="${pos[n].y+3}" text-anchor="middle" font-size="${fs}" fill="var(--fit-green)">${esc(sh)}</text></g>`;}).join("");
+  return `<svg viewBox="0 0 320 270" style="width:100%;height:auto;display:block">${edges}${circ}</svg>`;
 }
 
 /* ---- secondary ---- */
@@ -298,8 +328,8 @@ function viewArchive(){
 function viewAnalyze(){ return `<div style="padding:22px 28px"><div style="font-size:11px;letter-spacing:.2em;color:var(--fit-sage);margin-bottom:16px">INGESTION — ENREGISTREMENT / NOTE VOCALE · HORS-LIGNE</div>
   <div class="win" style="max-width:640px"><div style="padding:30px;text-align:center"><div style="font-size:34px;color:var(--fit-sage);margin-bottom:12px">⤒</div>
     <div style="font-size:14px;margin-bottom:6px">Déposer un enregistrement, une note vocale ou un texte</div>
-    <div style="font-size:11px;color:var(--fit-text-muted);margin-bottom:16px">WAV · MP3 · M4A · OGG · TXT — transcrit puis analysé, hors-ligne</div>
-    <input type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.txt" onchange="fitini.upload(this.files[0])" style="color:var(--fit-text-muted);font-size:12px"/>
+    <div style="font-size:11px;color:var(--fit-text-muted);margin-bottom:16px">PDF · DOCX · TXT · WAV · MP3 · M4A · OGG — extrait/transcrit puis analysé, hors-ligne</div>
+    <input type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.txt,.md,.csv,.pdf,.docx" onchange="fitini.upload(this.files[0])" style="color:var(--fit-text-muted);font-size:12px"/>
     <div id="analyze-status" style="margin-top:16px;font-size:12px;color:var(--fit-text-muted)"></div></div></div></div>`;}
 function viewConfig(){ const tog=(k,label,hint)=>{const on=S.settings[k];
   return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--fit-grid-line)"><div><div style="font-size:12px">${esc(label)}</div><div style="font-size:10px;color:var(--fit-text-faint);margin-top:3px">${esc(hint)}</div></div>
@@ -344,9 +374,10 @@ function showAlert(a){ S.alert=a; const m=$("modal-root"); if(m)m.innerHTML=aler
 function startFlux(){
   resetFlux(); S.started=true; S.streaming=true; renderFluxCta(); renderAnalyzer();
   const proto=location.protocol==="https:"?"wss:":"ws:";
-  ws=new WebSocket(`${proto}//${location.host}/ws/intercept?token=${encodeURIComponent(S.token||"")}&domains=${encodeURIComponent(S.domain)}&subject=${encodeURIComponent(S.subject||"")}`);
+  ws=new WebSocket(`${proto}//${location.host}/ws/intercept?token=${encodeURIComponent(S.token||"")}&domains=${encodeURIComponent(S.domain)}&subject=${encodeURIComponent(S.subject||"")}&source=${encodeURIComponent(S.interceptSource||"")}&mic=${S.micMode?"1":"0"}`);
   ws.onmessage=ev=>{const m=JSON.parse(ev.data);
-    if(m.type==="utterance")onUtterance(m); else if(m.type==="complete")onComplete(m); else if(m.type==="error"){S.streaming=false;renderAnalyzer();}};
+    if(m.type==="utterance")onUtterance(m); else if(m.type==="complete")onComplete(m);
+    else if(m.type==="error"){S.streaming=false;S.started=false;render();const up=$("int-up");if(up)up.textContent="Erreur : "+(m.detail||"source illisible")+" — pour l'écoute micro, installer faster-whisper + sounddevice côté serveur.";}};
   ws.onclose=()=>{S.streaming=false;if(S.screen==="intercept"){renderFluxCta();renderAnalyzer();}};
   ws.onerror=()=>{S.streaming=false;};
 }
@@ -378,12 +409,12 @@ function onUtterance(m){
 function onComplete(m){ S.done=true;S.streaming=false;
   if(m.report){S.summary=m.report.summary||S.summary;S.relationships=m.report.relationships||S.relationships;S.timeline=m.report.timeline||S.timeline;}
   if(S.screen==="intercept"){renderFluxCta();renderAnalyzer();}}
-function buildMatrix(){ const rows=emptyRows(),cell={},pair={};
+function buildMatrix(){ const rows=[],cell={},pair={};
   S.relationships.forEach(([a,b])=>{if(!pair[a]&&a!==b)pair[a]=b;});
-  let r=0;const placed=new Set();
-  for(const canon of S.detectedOrder){ if(r>=6)break; if(placed.has(canon))continue;
-    rows[r][0]=canon;cell[canon]=[r,0];placed.add(canon);
-    const p=pair[canon]; if(p&&!placed.has(p)){rows[r][1]=p;cell[p]=[r,1];placed.add(p);} r++; }
+  const placed=new Set();
+  for(const canon of S.detectedOrder){ if(placed.has(canon))continue;   // dynamic: grows with entities, no cap
+    const r=rows.length; rows.push([canon,""]); cell[canon]=[r,0]; placed.add(canon);
+    const p=pair[canon]; if(p&&!placed.has(p)){rows[r][1]=p;cell[p]=[r,1];placed.add(p);} }
   S.rows=rows;S.cellOf=cell;}
 function pumpFlags(){ if(S.busyFlags)return; if(!S.flagQueue.length)return;
   const canon=S.flagQueue.shift();S.busyFlags=true;setHot(canon);
@@ -437,6 +468,9 @@ window.fitini={
   toggleDomains:()=>{S.domainsOpen=!S.domainsOpen;render();},
   setSubject:(v)=>{S.subject=v;},
   subjectKey:(e)=>{if(e.key==="Enter"&&S.screen==="intercept")startFlux();},
+  listen:()=>{S.micMode=true;S.interceptSource="";startFlux();},
+  copyBrief:()=>{try{navigator.clipboard.writeText(buildBrief());}catch(e){}},
+  downloadBrief:()=>{const b=new Blob([buildBrief()],{type:"text/plain;charset=utf-8"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download="fitini-rapport.txt";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);},
   pickDomain:(id)=>{S.domain=id;S.domainsOpen=false;resetFlux();render();},
   openCross:()=>{S.domainsOpen=false;S.crossOpen=true;render();},
   startFlux,

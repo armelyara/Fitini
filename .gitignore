@@ -12,3 +12,6 @@ fitini.db
 # OS / editor
 .DS_Store
 *.swp
+
+# Uploaded sources (runtime)
+uploads/

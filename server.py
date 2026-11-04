@@ -32,6 +32,7 @@ import asyncio
 import json
 import os
 import tempfile
+import uuid
 import time
 from typing import Any, Dict, List, Optional
 
@@ -43,6 +44,7 @@ from pydantic import BaseModel
 
 import db
 import packs
+import doc_ingest
 from audio_transcriber import AudioStreamTranscriber
 from auth import AuthManager
 from fitini_core import CorrelationEngine
@@ -50,6 +52,8 @@ from fitini_core import CorrelationEngine
 BASE_DIR = os.path.dirname(__file__)
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as fh:
     CONFIG: Dict[str, Any] = json.load(fh)
@@ -190,6 +194,24 @@ def _canonical_report(engine: CorrelationEngine, alerts: List[Dict[str, Any]],
     }
 
 
+async def _source_stream(source):
+    """Stream an uploaded file through INTERCEPT: text transcripts line-by-line, or
+    audio transcribed on the fly via faster-whisper."""
+    path = os.path.join(UPLOAD_DIR, os.path.basename(source or ""))
+    if not source or not os.path.isfile(path):
+        return
+    if doc_ingest.is_text_like(path):
+        lines = doc_ingest.to_lines(doc_ingest.extract_text(path))
+        interval = min(CONFIG.get("pipeline", {}).get("simulation_interval_seconds", 1.1), 0.5)
+        for i, line in enumerate(lines):
+            await asyncio.sleep(interval)
+            yield {"ts": "L%d" % (i + 1), "text": line}
+    else:
+        transcriber = AudioStreamTranscriber(CONFIG, use_microphone=False)
+        async for seg in transcriber.transcribe_file(path):
+            yield seg
+
+
 async def _sim_stream(domain_ids):
     """Yield the selected domain's demo scenario, paced like a live stream."""
     interval = CONFIG.get("pipeline", {}).get("simulation_interval_seconds", 1.1)
@@ -282,6 +304,16 @@ def _persist_session(engine: CorrelationEngine, report: Dict[str, Any],
 
 
 # ------------------------------- analyze ----------------------------------- #
+@app.post("/api/upload")
+async def upload(file: UploadFile = File(...), _: str = Depends(require_auth)):
+    """Store an uploaded source (voice note / recording / transcript) for INTERCEPT."""
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    name = uuid.uuid4().hex + ext
+    with open(os.path.join(UPLOAD_DIR, name), "wb") as out:
+        out.write(await file.read())
+    return {"source": name, "filename": file.filename}
+
+
 @app.post("/api/analyze")
 async def analyze(file: UploadFile = File(...),
                   domains: Optional[str] = Query(None),
@@ -297,15 +329,14 @@ async def analyze(file: UploadFile = File(...),
         tmp.write(await file.read())
         tmp.close()
         count = 0
-        try:
-            async for item in transcriber.transcribe_file(tmp.name):
-                r = engine.analyze_utterance(item["text"], item.get("ts"))
+        if doc_ingest.is_text_like(tmp.name):
+            for ln in doc_ingest.to_lines(doc_ingest.extract_text(tmp.name)):
+                r = engine.analyze_utterance(ln)
                 alerts += r.get("alerts", [])
                 count += 1
-        except Exception:
-            # No Whisper / unsupported file here: fall back to the domain's demo stream.
-            for line in packs.demo_lines(_parse_domains(domains)):
-                r = engine.analyze_utterance(line["text"], line.get("ts"), line.get("speaker"))
+        else:
+            async for item in transcriber.transcribe_file(tmp.name):
+                r = engine.analyze_utterance(item["text"], item.get("ts"))
                 alerts += r.get("alerts", [])
                 count += 1
     finally:
@@ -325,7 +356,9 @@ async def analyze(file: UploadFile = File(...),
 async def websocket_intercept(websocket: WebSocket,
                               token: Optional[str] = Query(None),
                               domains: Optional[str] = Query(None),
-                              subject: Optional[str] = Query(None)):
+                              subject: Optional[str] = Query(None),
+                              source: Optional[str] = Query(None),
+                              mic: Optional[str] = Query(None)):
     if not auth_manager.validate(token):
         await websocket.close(code=4401)
         return
@@ -333,13 +366,17 @@ async def websocket_intercept(websocket: WebSocket,
 
     engine = _engine_for(domains, subject)
     ids = _parse_domains(domains)
-    use_mic = os.getenv("USE_MIC", "0") == "1"
+    use_mic = os.getenv("USE_MIC", "0") == "1" or (mic or "").lower() in ("1", "true", "yes")
     alerts: List[Dict[str, Any]] = []
-    source = (AudioStreamTranscriber(CONFIG, use_microphone=True).stream_transcriptions()
-              if use_mic else _sim_stream(ids))
+    if use_mic:
+        stream_gen = AudioStreamTranscriber(CONFIG, use_microphone=True).stream_transcriptions()
+    elif source:
+        stream_gen = _source_stream(source)
+    else:
+        stream_gen = _sim_stream(ids)
 
     try:
-        async for utt in source:
+        async for utt in stream_gen:
             payload = engine.analyze_utterance(utt["text"], utt.get("ts"), utt.get("speaker"))
             payload["type"] = "utterance"
             payload["flag_canonicals"] = _flag_canonicals(payload, engine)
