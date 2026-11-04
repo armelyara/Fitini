@@ -488,11 +488,13 @@ window.fitini={
 };
 async function loadArchive(){try{const r=await api("/api/sessions");S.archive=r.sessions||[];if(S.screen==="archive")render();}catch(e){}}
 async function saveSettings(){try{await api("/api/settings",{method:"PUT",json:{settings:S.settings}});}catch(e){}}
-async function uploadFile(file){const st=$("analyze-status");if(!file)return;if(st)st.textContent="Analyse en cours…";
+async function uploadFile(file){const st=$("analyze-status");if(!file)return;if(st){st.style.color="var(--fit-text-muted)";st.textContent="Analyse en cours…";}
   try{const fd=new FormData();fd.append("file",file);const h={};if(S.token)h["Authorization"]="Bearer "+S.token;
-    const r=await fetch("/api/analyze?domains="+encodeURIComponent(S.domain)+"&subject="+encodeURIComponent(S.subject||""),{method:"POST",headers:h,body:fd});const j=await r.json();
+    const r=await fetch("/api/analyze?domains="+encodeURIComponent(S.domain)+"&subject="+encodeURIComponent(S.subject||""),{method:"POST",headers:h,body:fd});const j=await r.json().catch(()=>({}));
+    if(!r.ok){if(st){st.style.color="#e5534b";st.textContent="Échec ("+r.status+") : "+(j.detail||j.error||"erreur serveur");}return;}
     if(j.report){S.summary=j.report.summary;S.relationships=j.report.relationships||[];S.timeline=j.report.timeline||[];S.flags=j.report.alerts||[];S.lines=[];}
-    if(st)st.textContent="Analyse terminée — "+(j.lines||0)+" lignes. Voir REPORT.";
+    if(j.error){if(st){st.style.color="#e5534b";st.textContent="Extraction impossible : "+j.error;}return;}
+    if(st){st.style.color=(j.lines?"var(--fit-text-muted)":"#d8b24a");st.textContent=(j.lines?("Analyse terminée — "+j.lines+" lignes. Voir REPORT."):(j.note||"Aucune ligne analysée."));}
   }catch(e){if(st)st.textContent="Échec de l'analyse.";}}
 
 /* ================= boot ================= */

@@ -325,20 +325,31 @@ async def analyze(file: UploadFile = File(...),
     suffix = os.path.splitext(file.filename or "")[1] or ".wav"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     alerts: List[Dict[str, Any]] = []
+    count = 0
+    error: Optional[str] = None
+    note: Optional[str] = None
     try:
         tmp.write(await file.read())
         tmp.close()
-        count = 0
-        if doc_ingest.is_text_like(tmp.name):
-            for ln in doc_ingest.to_lines(doc_ingest.extract_text(tmp.name)):
-                r = engine.analyze_utterance(ln)
-                alerts += r.get("alerts", [])
-                count += 1
-        else:
-            async for item in transcriber.transcribe_file(tmp.name):
-                r = engine.analyze_utterance(item["text"], item.get("ts"))
-                alerts += r.get("alerts", [])
-                count += 1
+        try:
+            if doc_ingest.is_text_like(tmp.name):
+                for ln in doc_ingest.to_lines(doc_ingest.extract_text(tmp.name)):
+                    r = engine.analyze_utterance(ln)
+                    alerts += r.get("alerts", [])
+                    count += 1
+                if count == 0:
+                    note = "Aucun texte exploitable extrait du document."
+            else:
+                async for item in transcriber.transcribe_file(tmp.name):
+                    r = engine.analyze_utterance(item["text"], item.get("ts"))
+                    alerts += r.get("alerts", [])
+                    count += 1
+                if count == 0:
+                    note = "Aucune parole transcrite depuis l'audio."
+        except Exception as exc:
+            # Surface the real reason (e.g. missing PyMuPDF/RapidOCR) to the UI
+            # instead of silently returning zero lines.
+            error = str(exc)
     finally:
         try:
             os.unlink(tmp.name)
@@ -348,7 +359,7 @@ async def analyze(file: UploadFile = File(...),
     report = _canonical_report(engine, alerts, duration="—")
     session_id = _persist_session(engine, report, channel="FILE · UPLOAD", dur="—")
     return {"session_id": session_id, "report": report, "lines": report["lines"],
-            "filename": file.filename}
+            "filename": file.filename, "error": error, "note": note}
 
 
 # ------------------------------ websocket ---------------------------------- #
