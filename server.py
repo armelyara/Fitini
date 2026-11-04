@@ -30,6 +30,7 @@ from __future__ import annotations
 import asyncio
 
 import json
+import logging
 import os
 import tempfile
 import uuid
@@ -346,10 +347,15 @@ async def analyze(file: UploadFile = File(...),
                     count += 1
                 if count == 0:
                     note = "Aucune parole transcrite depuis l'audio."
-        except Exception as exc:
-            # Surface the real reason (e.g. missing PyMuPDF/RapidOCR) to the UI
-            # instead of silently returning zero lines.
+        except RuntimeError as exc:
+            # doc_ingest raises RuntimeError with an operator-facing reason
+            # (missing lib / unsupported format) -- safe to surface to the UI.
             error = str(exc)
+        except Exception:
+            # Unexpected failure (corrupt file / parser bug): keep internals
+            # server-side, return a generic message (no path/stack leak).
+            logging.getLogger("fitini").exception("analyze: extraction failed")
+            error = "Erreur d'extraction du document."
     finally:
         try:
             os.unlink(tmp.name)

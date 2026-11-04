@@ -87,10 +87,17 @@ let ws=null;
 function emptyRows(){return [];}
 
 /* ---------------- api ---------------- */
-async function api(path,opts={}){
+async function relogin(){
+  const r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({operator_id:"ANALYSTE",passphrase:"fitini"})});
+  if(!r.ok) throw new Error("login "+r.status);
+  const j=await r.json(); S.token=j.token; localStorage.setItem("fitini_tok",S.token); return S.token;
+}
+async function api(path,opts={},_retried){
   const h=Object.assign({"Content-Type":"application/json"},opts.headers||{});
   if(S.token) h["Authorization"]="Bearer "+S.token;
   const r=await fetch(path,Object.assign({},opts,{headers:h,body:opts.json?JSON.stringify(opts.json):opts.body}));
+  if(r.status===401 && !_retried && path!=="/api/login"){ await relogin(); return api(path,opts,true); }
   if(!r.ok) throw new Error("HTTP "+r.status);
   const ct=r.headers.get("content-type")||""; return ct.includes("json")?r.json():r.text();
 }
@@ -375,10 +382,13 @@ function startFlux(){
   resetFlux(); S.started=true; S.streaming=true; renderFluxCta(); renderAnalyzer();
   const proto=location.protocol==="https:"?"wss:":"ws:";
   ws=new WebSocket(`${proto}//${location.host}/ws/intercept?token=${encodeURIComponent(S.token||"")}&domains=${encodeURIComponent(S.domain)}&subject=${encodeURIComponent(S.subject||"")}&source=${encodeURIComponent(S.interceptSource||"")}&mic=${S.micMode?"1":"0"}`);
+  ws.onopen=()=>{S._reauthed=false;};
   ws.onmessage=ev=>{const m=JSON.parse(ev.data);
     if(m.type==="utterance")onUtterance(m); else if(m.type==="complete")onComplete(m);
     else if(m.type==="error"){S.streaming=false;S.started=false;render();const up=$("int-up");if(up)up.textContent="Erreur : "+(m.detail||"source illisible")+" — pour l'écoute micro, installer faster-whisper + sounddevice côté serveur.";}};
-  ws.onclose=()=>{S.streaming=false;if(S.screen==="intercept"){renderFluxCta();renderAnalyzer();}};
+  ws.onclose=(ev)=>{S.streaming=false;
+    if(ev&&ev.code===4401&&!S._reauthed){S._reauthed=true;relogin().then(()=>startFlux()).catch(()=>{});return;}
+    if(S.screen==="intercept"){renderFluxCta();renderAnalyzer();}};
   ws.onerror=()=>{S.streaming=false;};
 }
 function resetFlux(){ if(ws){try{ws.close();}catch(e){}ws=null;}
@@ -489,8 +499,12 @@ window.fitini={
 async function loadArchive(){try{const r=await api("/api/sessions");S.archive=r.sessions||[];if(S.screen==="archive")render();}catch(e){}}
 async function saveSettings(){try{await api("/api/settings",{method:"PUT",json:{settings:S.settings}});}catch(e){}}
 async function uploadFile(file){const st=$("analyze-status");if(!file)return;if(st){st.style.color="var(--fit-text-muted)";st.textContent="Analyse en cours…";}
-  try{const fd=new FormData();fd.append("file",file);const h={};if(S.token)h["Authorization"]="Bearer "+S.token;
-    const r=await fetch("/api/analyze?domains="+encodeURIComponent(S.domain)+"&subject="+encodeURIComponent(S.subject||""),{method:"POST",headers:h,body:fd});const j=await r.json().catch(()=>({}));
+  try{const fd=new FormData();fd.append("file",file);
+    const send=()=>{const h={};if(S.token)h["Authorization"]="Bearer "+S.token;
+      return fetch("/api/analyze?domains="+encodeURIComponent(S.domain)+"&subject="+encodeURIComponent(S.subject||""),{method:"POST",headers:h,body:fd});};
+    let r=await send();
+    if(r.status===401){try{await relogin();r=await send();}catch(e){}}
+    const j=await r.json().catch(()=>({}));
     if(!r.ok){if(st){st.style.color="#e5534b";st.textContent="Échec ("+r.status+") : "+(j.detail||j.error||"erreur serveur");}return;}
     if(j.report){S.summary=j.report.summary;S.relationships=j.report.relationships||[];S.timeline=j.report.timeline||[];S.flags=j.report.alerts||[];S.lines=[];}
     if(j.error){if(st){st.style.color="#e5534b";st.textContent="Extraction impossible : "+j.error;}return;}
