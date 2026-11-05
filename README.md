@@ -45,3 +45,7 @@ NER spaCy (optionnelle, serveur) :
 pip install spacy==3.7.6 && python -m spacy download fr_core_news_sm
 ```
 Désactiver la NER : `FITINI_NER=0`.
+
+## Auteur & licence
+Développé par **VD Info** — open source. Vous êtes libres de télécharger, utiliser et modifier le code.
+Les modèles (Whisper, OCR RapidOCR, spaCy) ne sont **pas inclus** dans le dépôt : ils sont téléchargés / servis côté serveur. Le code reste donc utilisable tel quel.
