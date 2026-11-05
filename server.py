@@ -33,6 +33,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import tempfile
 import uuid
 import time
@@ -244,7 +245,22 @@ def _parse_domains(domains_param: Optional[str]) -> List[str]:
 
 
 def _watchlist(subject_param: Optional[str]) -> List[str]:
-    return [t.strip() for t in (subject_param or "").split(",") if t.strip()]
+    """Subject -> selectors: comma phrases kept whole, PLUS individual words (>=3).
+    So "Election mi-mandat 2026 USA" yields each word as a matchable selector."""
+    raw = subject_param or ""
+    terms: List[str] = []
+    seen = set()
+    for phrase in raw.split(","):
+        phrase = phrase.strip()
+        if phrase and phrase.lower() not in seen:
+            seen.add(phrase.lower())
+            terms.append(phrase)
+    for w in re.split(r"[^0-9A-Za-z\u00C0-\u017F'\-]+", raw):
+        w = w.strip("-'")
+        if len(w) >= 3 and w.lower() not in seen:
+            seen.add(w.lower())
+            terms.append(w)
+    return terms
 
 
 def _engine_for(domains_param: Optional[str], subject_param: Optional[str] = None) -> CorrelationEngine:
@@ -302,9 +318,17 @@ async def _sim_stream(domain_ids):
         yield {"ts": ln.get("ts"), "text": ln["text"], "speaker": ln.get("speaker")}
 
 
-GENERIC_FLAG_LABELS = {"WATCH", "MONEY", "IBAN", "COORD", "CODEWORD", "CVE",
-                       "WEAPON", "VIOLENCE", "HATE", "LANDGRAB", "ADVERSE_EFFECT",
-                       "FLAG", "MALWARE", "APT"}
+# Flagged by TYPE, not by value: any detected entity of these labels lights up
+# (arrow drawn), with NO need for the user to pre-type the exact words. The WATCH
+# subject is an optional priority layer on top, not the condition to flag.
+GENERIC_FLAG_LABELS = {
+    # detected named entities (NER + selectors) -- the actors of any content
+    "PERSON", "ORG", "LOCATION", "PLACE", "GPE", "HANDLE",
+    # intrinsically sensitive signals
+    "WATCH", "MONEY", "IBAN", "COORD", "CODEWORD", "CVE",
+    "WEAPON", "VIOLENCE", "HATE", "LANDGRAB", "ADVERSE_EFFECT",
+    "FLAG", "MALWARE", "APT",
+}
 
 
 def _flag_canonicals(p, engine=None):

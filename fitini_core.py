@@ -130,6 +130,20 @@ def _load_nlp():
         _NLP = None
     return _NLP
 
+_FOLD_MAP = {ord(a): b for a, b in {
+    "à": "a", "â": "a", "ä": "a", "á": "a", "ã": "a", "å": "a",
+    "ç": "c", "é": "e", "è": "e", "ê": "e", "ë": "e",
+    "í": "i", "ì": "i", "î": "i", "ï": "i", "ñ": "n",
+    "ó": "o", "ò": "o", "ô": "o", "ö": "o", "õ": "o",
+    "ú": "u", "ù": "u", "û": "u", "ü": "u", "ý": "y", "ÿ": "y",
+}.items()}
+
+
+def _fold(s: str) -> str:
+    """Accent-insensitive folding (length-preserving, so offsets stay valid)."""
+    return s.translate(_FOLD_MAP)
+
+
 class CorrelationEngine:
     def __init__(self, profile: Dict[str, Any], watchlist=None, use_ner=True):
         self.profile = profile
@@ -174,10 +188,11 @@ class CorrelationEngine:
     # ------------------------------------------------------------------ #
     def _extract(self, text: str) -> List[Dict[str, Any]]:
         lower = text.lower()
+        folded = _fold(lower)
         spans: List[Dict[str, Any]] = []
         for lx in self.lexicon:
-            pat = lx["pattern"].lower()
-            i = lower.find(pat)
+            pat = _fold(lx["pattern"].lower())
+            i = folded.find(pat)
             while i != -1:
                 spans.append({"start": i, "end": i + len(pat), "label": lx["label"],
                               "canonical": lx.get("canonical", lx["pattern"].upper()),

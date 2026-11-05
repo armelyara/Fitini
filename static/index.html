@@ -253,9 +253,9 @@ function renderSummary(){ const el=$("summary"); if(!el)return;
 function renderAnalyzer(){ const el=$("analyzer"); if(!el)return;
   const col=S.done?"var(--fit-green)":S.started?"var(--fit-scanning)":"var(--fit-text-muted)";
   const lab=S.done?"INTERCEPT COMPLETE":S.started?"STREAM ACTIVE":"IDLE";
-  const right=S.done?`<button class="actbtn" onclick="fitini.go('report')">REPORT →</button>`:S.streaming?`<span style="font-size:10px;color:var(--fit-scanning);animation:fit-pulse 1.4s infinite">● REC</span>`:"";
+  const right=S.done?`<button class="actbtn" onclick="fitini.go('report')">REPORT →</button>`:S.streaming?`<span style="display:inline-flex;align-items:center;gap:10px"><span style="font-size:10px;color:var(--fit-scanning);animation:fit-pulse 1.4s infinite">● REC</span><button class="actbtn" onclick="fitini.stopFlux()">■ STOP</button></span>`:"";
   const row1=`<div style="display:flex;justify-content:space-between;align-items:center"><span style="display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.12em;color:${col}"><span style="width:8px;height:8px;border-radius:50%;background:${col}"></span>${lab}</span>${right}</div>`;
-  const row2=S.done?`<button class="actbtn" style="align-self:flex-start" onclick="fitini.startFlux()">↻ REPLAY</button>`:"";
+  const row2=S.done?`<button class="actbtn" style="align-self:flex-start" onclick="fitini.listen()">↻ RELANCER L\'ÉCOUTE</button>`:"";
   el.innerHTML=row1+row2;
 }
 
