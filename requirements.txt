@@ -1,21 +1,24 @@
-# ---- Core (required) : runs the full app in simulation mode ----------------
+# ---- Core (required) : runs the web app, dossiers, deterministic engine -----
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 websockets==13.0.1
 python-multipart==0.0.9
 
-# ---- Optional : live microphone + real audio transcription -----------------
-# Install these for USE_MIC=1 or to transcribe real uploaded files.
-#   pip install faster-whisper==1.0.3 torch==2.4.0 torchaudio==2.4.0 \
-#               sounddevice==0.5.0 numpy==1.26.4
-#
-# faster-whisper==1.0.3
-# torch==2.4.0
-# torchaudio==2.4.0
-# sounddevice==0.5.0
-# numpy==1.26.4
+# ---- Document ingestion (ANALYSE : PDF / DOCX / images) ---------------------
+# PDF text, DOCX text, and offline OCR for images / scanned PDFs (CPU, no GPU).
+pymupdf==1.24.10
+python-docx==1.1.2
+rapidocr-onnxruntime==1.3.24
 
-# ---- Optional : supplementary spaCy NER (set settings.ner_spacy = true) -----
-#   pip install spacy==3.7.6 && python -m spacy download en_core_web_sm
-#
+# ---- Live microphone + audio transcription (INTERCEPT / audio files) --------
+# No torch: VAD is energy-based (numpy); transcription via faster-whisper.
+faster-whisper==1.0.3
+sounddevice==0.5.0
+numpy==1.26.4
+
+# ---- Optional : spaCy NER booster (open extraction) -------------------------
+#   pip install spacy==3.7.6 && python -m spacy download fr_core_news_sm
 # spacy==3.7.6
+
+# ---- Phase 3 web collection : NO extra dependency (stdlib urllib) -----------
+# Opt-in at runtime only:  FITINI_WEB=1  +  EXA_API_KEY=...  (or TAVILY_API_KEY=...)

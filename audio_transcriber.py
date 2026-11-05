@@ -3,10 +3,10 @@ audio_transcriber.py — audio acquisition + transcription for Fitini Voice Anal
 
 Three sources, one async interface (`stream_transcriptions`):
 
-  * MICROPHONE            — sounddevice capture -> Silero VAD gating -> faster-whisper.
+  * MICROPHONE            — sounddevice capture -> energy VAD gating -> faster-whisper.
   * FILE                  — transcribe a recorded file with faster-whisper.
 
-CRITICAL FIX vs. the original spec: Silero VAD and Whisper are synchronous, CPU-heavy
+CRITICAL FIX vs. the original spec: VAD and Whisper are synchronous, CPU-heavy
 calls. Running them directly inside the asyncio event loop blocks every WebSocket on the
 server. Here, every model call is dispatched with `asyncio.to_thread(...)` so the event
 loop stays responsive.
@@ -30,6 +30,7 @@ class AudioStreamTranscriber:
         self.device = p.get("device", "cpu")
         self.compute_type = p.get("compute_type", "int8")
         self.vad_threshold = float(p.get("vad_threshold", 0.5))
+        self.energy_threshold = float(p.get("energy_threshold", 0.01))
         self.silence_frames_limit = int(p.get("silence_frames", 18))
         self.chunk_samples = int(p.get("chunk_samples", 512))
         self.sim_interval = float(p.get("simulation_interval_seconds", 1.1))
@@ -42,15 +43,9 @@ class AudioStreamTranscriber:
 
     # ------------------------------------------------------------------ #
     def _load_models(self) -> None:
-        """Blocking model load — always called via asyncio.to_thread."""
-        import torch  # type: ignore
+        """Blocking Whisper load -- always called via asyncio.to_thread (no torch)."""
         from faster_whisper import WhisperModel  # type: ignore
 
-        self.vad_model, _ = torch.hub.load(
-            repo_or_dir="snakers4/silero-vad",
-            model="silero_vad",
-            force_reload=False,
-        )
         self.whisper_model = WhisperModel(
             self.model_size, device=self.device, compute_type=self.compute_type
         )
@@ -102,15 +97,17 @@ class AudioStreamTranscriber:
 
     async def _stream_microphone(self) -> AsyncGenerator[Dict[str, str], None]:  # pragma: no cover
         import sounddevice as sd  # type: ignore
-        import torch  # type: ignore
+        import numpy as np  # type: ignore
 
-        if self.whisper_model is None or self.vad_model is None:
+        if self.whisper_model is None:
             await asyncio.to_thread(self._load_models)
 
         self._reset_segmenter()
 
         def vad_fn(chunk):
-            return self.vad_model(torch.from_numpy(chunk), self.sample_rate).item()
+            # Energy-based VAD (RMS) -- deterministic, offline, no torch/Silero.
+            rms = float(np.sqrt(np.mean(np.square(chunk)))) if len(chunk) else 0.0
+            return 1.0 if rms >= self.energy_threshold else 0.0
 
         with sd.InputStream(
             samplerate=self.sample_rate,
