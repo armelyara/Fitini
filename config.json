@@ -7,7 +7,7 @@
   },
   "pipeline": {
     "sample_rate": 16000,
-    "model_size": "base.en",
+    "model_size": "small",
     "device": "cpu",
     "compute_type": "int8",
     "vad_threshold": 0.5,
@@ -15,7 +15,7 @@
     "chunk_samples": 512,
     "simulation_interval_seconds": 1.1,
     "beam_size": 1,
-    "language": "en"
+    "language": "fr"
   },
   "default_settings": {
     "vad": true,
