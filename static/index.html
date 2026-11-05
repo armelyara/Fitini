@@ -216,7 +216,7 @@ function renderFluxCta(){ const el=$("flux-cta"); if(!el)return;
     ${S.micError?`<div style="font-size:11px;color:#d8b24a;margin-top:12px;max-width:430px;margin-left:auto;margin-right:auto;line-height:1.5">${esc(S.micError)}</div>`:""}
     <div id="int-up" style="font-size:11px;color:var(--fit-text-muted);margin-top:12px;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.5">L'analyse démarre automatiquement dès l'écoute. Pour un fichier / enregistrement, utilise <b style="color:var(--fit-sage)">ANALYSE</b>.</div></div>`;
   else if(S.streaming) el.innerHTML=`<div style="text-align:center;margin:18px auto"><div style="color:var(--fit-sage);font-size:15px;margin-bottom:12px">▌<span style="animation:fit-blink 1s infinite"> écoute…</span></div><button class="actbtn" onclick="fitini.stopFlux()">■ ARRÊTER L'ÉCOUTE</button></div>`;
-  else el.innerHTML="";
+  else el.innerHTML=`<div style="text-align:center;margin:18px auto"><button class="primary" onclick="fitini.listen()">\u25b6 \u00c9COUTER (micro)</button><div style="font-size:11px;color:var(--fit-text-faint);margin-top:10px">\u00c9coute arr\u00eat\u00e9e \u2014 relance pour une nouvelle session, ou va dans REPORT.</div></div>`;
 }
 function renderTranscript(){ const el=$("transcript"); if(!el)return;
   el.innerHTML=S.lines.map(lineHtml).join("");

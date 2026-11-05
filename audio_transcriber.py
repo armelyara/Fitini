@@ -35,7 +35,9 @@ class AudioStreamTranscriber:
         self.chunk_samples = int(p.get("chunk_samples", 512))
         self.sim_interval = float(p.get("simulation_interval_seconds", 1.1))
         self.beam_size = int(p.get("beam_size", 1))
-        self.language = p.get("language", "en")
+        lang = p.get("language", "auto")
+        # None lets faster-whisper auto-detect the language (FR or EN) per source.
+        self.language = None if lang in ("", "auto", None) else lang
 
         self.audio_queue: "queue.Queue" = queue.Queue()
         self.whisper_model = None

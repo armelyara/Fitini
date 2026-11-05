@@ -15,7 +15,7 @@
     "chunk_samples": 512,
     "simulation_interval_seconds": 1.1,
     "beam_size": 1,
-    "language": "fr"
+    "language": "auto"
   },
   "default_settings": {
     "vad": true,
