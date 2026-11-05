@@ -90,6 +90,7 @@ const S={
   dossiers:[], dossierId:null, dossierData:null, dossierNew:"",
   winMin:new Set(), winMax:null, winClosed:new Set(), micError:null,
   searchQ:"", searchResults:[], searchChecked:new Set(), searchError:null, searchBusy:false,
+  dossierAnalysis:null,
 };
 let ws=null;
 function emptyRows(){return [];}
@@ -357,13 +358,29 @@ function searchWin(d){
     <div style="padding:14px 16px;display:flex;gap:10px;align-items:center"><input id="dossier-q" value="${esc(S.searchQ)}" oninput="fitini.setSearchQ(this.value)" onkeydown="if(event.key==='Enter')fitini.dossierSearch()" placeholder="Requ\u00eate sur \u00ab ${esc(d.name)} \u00bb\u2026" style="flex:1;background:var(--fit-surface-3);border:1px solid var(--fit-border);color:var(--fit-green);font-size:12px;padding:9px 12px;outline:none"/><button class="actbtn" onclick="fitini.dossierSearch()">RECHERCHER</button></div>
     ${body}</div>`;
 }
+function analysisBlock(){
+  const a=S.dossierAnalysis; if(!a) return "";
+  if(a.busy) return `<div style="max-width:900px;margin-top:14px;color:var(--fit-sage);font-size:12px">Analyse en cours\u2026</div>`;
+  if(a.error) return `<div style="max-width:900px;margin-top:14px;color:#e5534b;font-size:12px">${esc(a.error)}</div>`;
+  const sel=(a.selectors||[]).join(", ");
+  const rows=(a.passages||[]).map(p=>`<div style="padding:12px 16px;border-bottom:1px solid var(--fit-grid-line);font-size:12px"><div style="display:flex;gap:10px;align-items:baseline;margin-bottom:4px"><span style="color:var(--fit-sage);font-weight:700;min-width:88px">${esc(p.date||"\u2014")}</span><a href="${esc(p.url)}" target="_blank" rel="noopener" style="color:var(--fit-text-muted);font-size:10px;text-decoration:none">${esc(p.title||p.platform||"source")}</a></div><div style="color:var(--fit-text);line-height:1.5">${esc(p.passage)}</div><div style="margin-top:4px;color:var(--fit-sage);font-size:10px">\u21b3 ${esc((p.matched||[]).join(", "))}</div></div>`).join("")
+    ||`<div style="padding:16px;color:var(--fit-text-faint);font-size:12px">Aucun passage mentionnant \u00ab ${esc(sel)} \u00bb dans les sources vers\u00e9es.</div>`;
+  const ents=(a.entities||[]).slice(0,24).map(e=>`<span style="font-size:11px;padding:5px 10px;border:1px solid var(--fit-green-dim);color:var(--fit-green);background:var(--fit-surface-2)">${esc(e.name)} <span style="color:var(--fit-text-faint)">${e.count||""}</span></span>`).join("")||"\u2014";
+  return `<div style="max-width:900px;margin-top:16px">
+    ${win("Juxtaposition \u2014 \u00ab "+sel+" \u00bb dans le temps ("+(a.passages||[]).length+")",rows)}
+    <div style="height:14px"></div>
+    ${win("Entit\u00e9s extraites",`<div style="padding:14px 16px;display:flex;flex-wrap:wrap;gap:8px">${ents}</div>`)}
+  </div>`;
+}
 function viewDossierDetail(d){
   const srcs=(d.sources||[]);
   const list=srcs.length?srcs.map(x=>`<div style="display:grid;grid-template-columns:90px 1fr 110px 90px;padding:11px 16px;border-bottom:1px solid var(--fit-grid-line);font-size:12px;align-items:center"><span style="color:var(--fit-sage)">${esc(x.type||"src")}</span><span style="color:var(--fit-green)">${esc(x.title||x.url||x.id)}</span><span style="color:var(--fit-text-muted)">${esc(x.published_date||"")}</span><span style="color:var(--fit-text-muted)">${esc(x.platform||"")}</span></div>`).join("")
     :`<div style="padding:16px;color:var(--fit-text-faint);font-size:12px">Aucune source versée. Lance une recherche, coche les sources pertinentes, puis « Télécharger ».</div>`;
   return `<div style="padding:26px 34px"><div style="display:flex;align-items:center;gap:14px;margin-bottom:18px"><button class="actbtn" onclick="fitini.closeDossier()">← DOSSIERS</button><div style="font-size:22px;letter-spacing:.1em">DOSSIER · ${esc(d.name)}</div><span style="color:var(--fit-text-faint);font-size:11px">${esc(d.id)}</span></div>
     ${searchWin(d)}
-    ${win("Sources du dossier ("+srcs.length+")",list)}</div>`;
+    ${win("Sources du dossier ("+srcs.length+")",list)}
+    ${srcs.length?`<div style="max-width:900px;margin-top:14px"><button class="actbtn" onclick="fitini.analyzeDossier()">\u26a1 ANALYSER LE DOSSIER (avant / maintenant)</button></div>`:""}
+    ${analysisBlock()}</div>`;
 }
 function viewArchive(){
   const rows=S.archive.filter(a=>!S.query||((a.subject||"")+(a.id||"")).toLowerCase().includes(S.query.toLowerCase()))
@@ -536,14 +553,15 @@ window.fitini={
   setQuery:(v)=>{S.query=v;if(S.screen==="archive")render();},
   setDossierNew:(v)=>{S.dossierNew=v;},
   createDossier:async()=>{const n=(S.dossierNew||"").trim();if(!n)return;try{await api("/api/dossiers",{method:"POST",json:{name:n}});S.dossierNew="";await loadDossiers();}catch(e){}},
-  openDossier:async(id)=>{S.searchQ="";S.searchResults=[];S.searchChecked=new Set();S.searchError=null;S.searchBusy=false;try{const d=await api("/api/dossier/"+id);S.dossierId=id;S.dossierData=d;render();}catch(e){}},
-  closeDossier:()=>{S.dossierId=null;S.dossierData=null;S.searchResults=[];S.searchChecked=new Set();S.searchQ="";render();loadDossiers();},
+  openDossier:async(id)=>{S.searchQ="";S.searchResults=[];S.searchChecked=new Set();S.searchError=null;S.searchBusy=false;S.dossierAnalysis=null;try{const d=await api("/api/dossier/"+id);S.dossierId=id;S.dossierData=d;render();}catch(e){}},
+  closeDossier:()=>{S.dossierId=null;S.dossierData=null;S.searchResults=[];S.searchChecked=new Set();S.searchQ="";S.dossierAnalysis=null;render();loadDossiers();},
   winMin:(k)=>{const key=decodeURIComponent(k);if(S.winMin.has(key))S.winMin.delete(key);else S.winMin.add(key);render();},
   winMax:(k)=>{const key=decodeURIComponent(k);S.winMax=(S.winMax===key?null:key);render();},
   winClose:(k)=>{const key=decodeURIComponent(k);S.winClosed.add(key);render();},
   setSearchQ:(v)=>{S.searchQ=v;},
   dossierSearch:async()=>{if(!S.dossierData)return;S.searchBusy=true;S.searchError=null;S.searchResults=[];S.searchChecked=new Set();render();try{const r=await api("/api/search?subject="+encodeURIComponent(S.dossierData.name)+"&query="+encodeURIComponent(S.searchQ||""));S.searchResults=r.candidates||[];S.searchError=r.error||null;}catch(e){S.searchError="Recherche indisponible.";}S.searchBusy=false;render();},
   toggleCheck:(id)=>{if(S.searchChecked.has(id))S.searchChecked.delete(id);else S.searchChecked.add(id);render();},
+  analyzeDossier:async()=>{if(!S.dossierId)return;S.dossierAnalysis={busy:true};render();try{const r=await api("/api/dossier/"+S.dossierId+"/analyze",{method:"POST"});S.dossierAnalysis=r;}catch(e){S.dossierAnalysis={error:"Analyse impossible."};}render();},
   collectChecked:async()=>{if(!S.dossierId)return;const sel=(S.searchResults||[]).filter(r=>S.searchChecked.has(r.id));if(!sel.length)return;try{const r=await api("/api/dossier/"+S.dossierId+"/collect",{method:"POST",json:{candidates:sel}});if(r.dossier)S.dossierData=r.dossier;S.searchResults=[];S.searchChecked=new Set();S.searchQ="";render();}catch(e){S.searchError="T\u00e9l\u00e9chargement impossible.";render();}},
   toggleSetting:(k)=>{S.settings[k]=!S.settings[k];render();saveSettings();},
   upload:(f)=>uploadFile(f),

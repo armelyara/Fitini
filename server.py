@@ -48,6 +48,7 @@ import db
 import dossiers
 import packs
 import web_collect
+import dossier_analyze
 import doc_ingest
 from audio_transcriber import AudioStreamTranscriber
 from auth import AuthManager
@@ -198,6 +199,16 @@ async def web_search(subject: Optional[str] = Query(None),
     except Exception:
         logging.getLogger("fitini").exception("web search failed")
         return {"candidates": [], "error": "Recherche indisponible."}
+
+
+@app.post("/api/dossier/{dossier_id}/analyze")
+async def dossier_analyze_ep(dossier_id: str, selectors: Optional[str] = Query(None),
+                             _: str = Depends(require_auth)):
+    """Deterministic before/now juxtaposition + entities over the dossier sources."""
+    d = dossiers.get_dossier(dossier_id)
+    if not d:
+        raise HTTPException(status_code=404, detail="Dossier not found")
+    return dossier_analyze.analyze(d, selectors or "")
 
 
 @app.post("/api/dossier/{dossier_id}/collect")
