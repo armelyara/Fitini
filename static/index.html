@@ -82,6 +82,7 @@ const S={
   results:[], filterEnt:null, termOpen:false, alert:null, alertedKeys:new Set(),
   termLines:[{t:"Fitini · terminal déterministe — tapez `help`.",c:"var(--fit-sage)"}],
   crossOpen:false, query:"", archive:[], settings:{vad:true,diarize:true,redact:false,autolock:true},
+  dossiers:[], dossierId:null, dossierData:null, dossierNew:"",
 };
 let ws=null;
 function emptyRows(){return [];}
@@ -322,10 +323,26 @@ function graphSvg(){
 }
 
 /* ---- secondary ---- */
-function viewDossier(){ const subj=S.summary.entities[0]||"—";
-  const ents=S.summary.entities.map(e=>`<span style="font-size:12px;letter-spacing:.08em;padding:7px 12px;border:1px solid var(--fit-green-dim);color:var(--fit-green);background:var(--fit-surface-2)">${esc(e)}</span>`).join("")||"—";
-  return `<div style="padding:26px 34px"><div style="font-size:22px;letter-spacing:.1em;margin-bottom:18px">DOSSIER · ${esc(subj)}</div>
-    ${win("Réseau — entités liées",`<div style="padding:16px;display:flex;flex-wrap:wrap;gap:10px">${ents}</div>`)}</div>`;}
+function fmtDate(ts){try{return new Date((ts||0)*1000).toISOString().slice(0,10);}catch(e){return "";}}
+function viewDossier(){
+  if(S.dossierId && S.dossierData) return viewDossierDetail(S.dossierData);
+  const rows=(S.dossiers||[]).map(d=>`<div onclick="fitini.openDossier('${d.id}')" style="display:grid;grid-template-columns:140px 1fr 80px 110px;padding:12px 18px;border-bottom:1px solid var(--fit-grid-line);font-size:12px;align-items:center;cursor:pointer"><span style="color:var(--fit-sage)">${esc(d.id)}</span><span style="color:var(--fit-green);font-weight:700">${esc(d.name)}</span><span style="color:var(--fit-text-muted)">${d.count} src</span><span style="color:var(--fit-text-muted)">${esc(fmtDate(d.created_at))}</span></div>`).join("")
+    ||`<div style="padding:16px;color:var(--fit-text-faint);font-size:12px">Aucun dossier. Créez-en un pour commencer une enquête.</div>`;
+  return `<div style="padding:26px 34px"><div style="font-size:22px;letter-spacing:.1em;margin-bottom:18px">DOSSIERS D'ENQUÊTE</div>
+    <div class="win" style="max-width:720px;margin-bottom:18px"><div style="padding:16px;display:flex;gap:10px;align-items:center">
+      <input id="dossier-new" value="${esc(S.dossierNew)}" oninput="fitini.setDossierNew(this.value)" onkeydown="if(event.key==='Enter')fitini.createDossier()" placeholder="Nom du dossier (sujet de l'enquête)…" style="flex:1;background:var(--fit-surface-3);border:1px solid var(--fit-border);color:var(--fit-green);font-size:12px;padding:9px 12px;outline:none"/>
+      <button class="actbtn" onclick="fitini.createDossier()">+ NOUVEAU</button></div></div>
+    <div class="win" style="max-width:720px"><div style="display:grid;grid-template-columns:140px 1fr 80px 110px;padding:11px 18px;font-size:10px;letter-spacing:.14em;color:var(--fit-text-faint);border-bottom:1px solid var(--fit-border);background:var(--fit-titlebar)"><span>ID</span><span>SUJET</span><span>SOURCES</span><span>CRÉÉ</span></div>${rows}</div></div>`;
+}
+function viewDossierDetail(d){
+  const srcs=(d.sources||[]);
+  const list=srcs.length?srcs.map(x=>`<div style="display:grid;grid-template-columns:90px 1fr 110px 90px;padding:11px 16px;border-bottom:1px solid var(--fit-grid-line);font-size:12px;align-items:center"><span style="color:var(--fit-sage)">${esc(x.type||"src")}</span><span style="color:var(--fit-green)">${esc(x.title||x.url||x.id)}</span><span style="color:var(--fit-text-muted)">${esc(x.published_date||"")}</span><span style="color:var(--fit-text-muted)">${esc(x.platform||"")}</span></div>`).join("")
+    :`<div style="padding:16px;color:var(--fit-text-faint);font-size:12px">Aucune source versée. La recherche web (coche → télécharger) arrive à la prochaine étape.</div>`;
+  return `<div style="padding:26px 34px"><div style="display:flex;align-items:center;gap:14px;margin-bottom:18px"><button class="actbtn" onclick="fitini.closeDossier()">← DOSSIERS</button><div style="font-size:22px;letter-spacing:.1em">DOSSIER · ${esc(d.name)}</div><span style="color:var(--fit-text-faint);font-size:11px">${esc(d.id)}</span></div>
+    <div class="win" style="max-width:860px;margin-bottom:18px"><div style="padding:14px 16px;color:var(--fit-text-faint);font-size:11px;letter-spacing:.1em;border-bottom:1px solid var(--fit-border);background:var(--fit-titlebar)">RECHERCHE DE SOURCES</div>
+      <div style="padding:16px;color:var(--fit-text-muted);font-size:12px">Module de collecte web (sujet + requête → résultats cochables → téléchargement dans le dossier) — <span style="color:var(--fit-sage)">prochaine étape</span>.</div></div>
+    ${win("Sources du dossier ("+srcs.length+")",list)}</div>`;
+}
 function viewArchive(){
   const rows=S.archive.filter(a=>!S.query||((a.subject||"")+(a.id||"")).toLowerCase().includes(S.query.toLowerCase()))
     .map(a=>`<div style="display:grid;grid-template-columns:110px 1fr 120px 110px 90px;padding:12px 18px;border-bottom:1px solid var(--fit-grid-line);font-size:12px;align-items:center"><span style="color:var(--fit-sage)">${esc(a.id)}</span><span style="color:var(--fit-green);font-weight:700">${esc(a.subject)}</span><span style="color:var(--fit-text-muted)">${esc(a.channel||"")}</span><span style="color:var(--fit-text-muted)">${esc(a.date||"")}</span><span style="color:${a.statusColor||"var(--fit-text-muted)"};font-size:10px">● ${esc(a.status||"")}</span></div>`).join("")
@@ -473,7 +490,7 @@ function termExec(raw){ termPrint("▸ "+raw,"var(--fit-green)");
 
 /* ================= handlers ================= */
 window.fitini={
-  go:(k)=>{S.screen=k;S.domainsOpen=false;render();if(k==="archive")loadArchive();},
+  go:(k)=>{S.screen=k;S.domainsOpen=false;if(k==="dossier"){S.dossierId=null;S.dossierData=null;}render();if(k==="archive")loadArchive();if(k==="dossier")loadDossiers();},
   lock:()=>{if(ws){try{ws.close();}catch(e){}} S.screen="intercept";S.domainsOpen=false;resetFlux();render();},
   toggleDomains:()=>{S.domainsOpen=!S.domainsOpen;render();},
   setSubject:(v)=>{S.subject=v;},
@@ -493,10 +510,15 @@ window.fitini={
   escalate:()=>{const m=$("modal-root");if(m)m.innerHTML="";S.alert=null;S.screen="report";render();},
   runCross:()=>{const a=$("crossA").value,b=$("crossB").value;S.crossOpen=false;render();doCross(a,b);},
   setQuery:(v)=>{S.query=v;if(S.screen==="archive")render();},
+  setDossierNew:(v)=>{S.dossierNew=v;},
+  createDossier:async()=>{const n=(S.dossierNew||"").trim();if(!n)return;try{await api("/api/dossiers",{method:"POST",json:{name:n}});S.dossierNew="";await loadDossiers();}catch(e){}},
+  openDossier:async(id)=>{try{const d=await api("/api/dossier/"+id);S.dossierId=id;S.dossierData=d;render();}catch(e){}},
+  closeDossier:()=>{S.dossierId=null;S.dossierData=null;render();loadDossiers();},
   toggleSetting:(k)=>{S.settings[k]=!S.settings[k];render();saveSettings();},
   upload:(f)=>uploadFile(f),
 };
 async function loadArchive(){try{const r=await api("/api/sessions");S.archive=r.sessions||[];if(S.screen==="archive")render();}catch(e){}}
+async function loadDossiers(){try{const r=await api("/api/dossiers");S.dossiers=r.dossiers||[];if(S.screen==="dossier"&&!S.dossierId)render();}catch(e){}}
 async function saveSettings(){try{await api("/api/settings",{method:"PUT",json:{settings:S.settings}});}catch(e){}}
 async function uploadFile(file){const st=$("analyze-status");if(!file)return;if(st){st.style.color="var(--fit-text-muted)";st.textContent="Analyse en cours…";}
   try{const fd=new FormData();fd.append("file",file);

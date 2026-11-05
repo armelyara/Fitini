@@ -44,6 +44,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import db
+import dossiers
 import packs
 import doc_ingest
 from audio_transcriber import AudioStreamTranscriber
@@ -88,6 +89,10 @@ class LoginBody(BaseModel):
 
 class SettingsBody(BaseModel):
     settings: Dict[str, Any]
+
+
+class DossierBody(BaseModel):
+    name: str
 
 
 # ------------------------------- routes ------------------------------------ #
@@ -154,6 +159,25 @@ async def read_settings(_: str = Depends(require_auth)):
 async def update_settings(body: SettingsBody, _: str = Depends(require_auth)):
     merged = {**db.get_settings(), **body.settings}
     return {"settings": db.save_settings(merged)}
+
+
+# ------------------------------ dossiers ----------------------------------- #
+@app.get("/api/dossiers")
+async def dossiers_list(_: str = Depends(require_auth)):
+    return {"dossiers": dossiers.list_dossiers()}
+
+
+@app.post("/api/dossiers")
+async def dossiers_create(body: DossierBody, _: str = Depends(require_auth)):
+    return {"dossier": dossiers.create_dossier(body.name, operator=auth_manager.operator_id)}
+
+
+@app.get("/api/dossier/{dossier_id}")
+async def dossier_detail(dossier_id: str, _: str = Depends(require_auth)):
+    d = dossiers.get_dossier(dossier_id)
+    if not d:
+        raise HTTPException(status_code=404, detail="Dossier not found")
+    return d
 
 
 # ---------------------------- engine helpers ------------------------------- #
