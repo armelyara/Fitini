@@ -37,6 +37,11 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:200;op
 .win{border:1px solid var(--fit-border);background:var(--fit-surface)}
 .win>.hd{display:flex;justify-content:space-between;align-items:center;background:var(--fit-titlebar);border-bottom:1px solid var(--fit-border);padding:7px 12px;font-size:12px}
 .win>.rule{height:2px;background:linear-gradient(90deg,var(--fit-green),transparent)}
+.win>.hd .wc{letter-spacing:3px;color:var(--fit-text-faint);user-select:none}
+.win>.hd .wc b{cursor:pointer;padding:0 3px;font-weight:400}
+.win>.hd .wc b:hover{color:var(--fit-green)}
+.win.collapsed>:not(.hd){display:none!important}
+.win.maximized{position:fixed;inset:70px 16px 16px 16px;z-index:200;overflow:auto;max-width:none!important}
 .wc{color:var(--fit-text-faint);letter-spacing:.2em;font-size:11px}
 .primary{font-size:12px;letter-spacing:.14em;color:var(--fit-ink-on-green);background:var(--fit-green);border:none;padding:11px 20px;box-shadow:0 0 10px var(--fit-green-glow)}
 .navbtn{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:11px 18px;border:none;border-left:2px solid transparent;background:transparent;color:var(--fit-text);font-size:12px;letter-spacing:.14em}
@@ -83,6 +88,8 @@ const S={
   termLines:[{t:"Fitini · terminal déterministe — tapez `help`.",c:"var(--fit-sage)"}],
   crossOpen:false, query:"", archive:[], settings:{vad:true,diarize:true,redact:false,autolock:true},
   dossiers:[], dossierId:null, dossierData:null, dossierNew:"",
+  winMin:new Set(), winMax:null, winClosed:new Set(), micError:null,
+  searchQ:"", searchResults:[], searchChecked:new Set(), searchError:null, searchBusy:false,
 };
 let ws=null;
 function emptyRows(){return [];}
@@ -108,7 +115,11 @@ setInterval(()=>{const d=new Date(),p=n=>String(n).padStart(2,"0");
 
 /* ================= RENDER ================= */
 function win(title,body,extra){
-  return `<div class="win" ${extra||""}><div class="hd"><span>${esc(title)}</span><span class="wc">- □ x</span></div><div class="rule"></div>${body}</div>`;
+  const key=title;
+  if(S.winClosed.has(key)) return "";
+  const k=encodeURIComponent(key);
+  const cls="win"+(S.winMin.has(key)?" collapsed":"")+(S.winMax===key?" maximized":"");
+  return `<div class="${cls}" ${extra||""}><div class="hd"><span>${esc(title)}</span><span class="wc"><b onclick="fitini.winMin('${k}')" title="Réduire">–</b><b onclick="fitini.winMax('${k}')" title="Agrandir">□</b><b onclick="fitini.winClose('${k}')" title="Fermer">×</b></span></div><div class="rule"></div>${body}</div>`;
 }
 function render(){
   $("app").innerHTML=shell(content());
@@ -202,6 +213,7 @@ function renderFluxCta(){ const el=$("flux-cta"); if(!el)return;
   if(!S.started) el.innerHTML=`<div style="margin:24px auto;text-align:center">
     <div style="font-size:10px;letter-spacing:.28em;color:var(--fit-sage);margin-bottom:14px">ÉCOUTE D'UNE CONVERSATION EN DIRECT</div>
     <button class="primary" onclick="fitini.listen()">▶ ÉCOUTER (micro)</button>
+    ${S.micError?`<div style="font-size:11px;color:#d8b24a;margin-top:12px;max-width:430px;margin-left:auto;margin-right:auto;line-height:1.5">${esc(S.micError)}</div>`:""}
     <div id="int-up" style="font-size:11px;color:var(--fit-text-muted);margin-top:12px;max-width:380px;margin-left:auto;margin-right:auto;line-height:1.5">L'analyse démarre automatiquement dès l'écoute. Pour un fichier / enregistrement, utilise <b style="color:var(--fit-sage)">ANALYSE</b>.</div></div>`;
   else if(S.streaming) el.innerHTML=`<div style="color:var(--fit-sage);font-size:15px">▌<span style="animation:fit-blink 1s infinite"> écoute…</span></div>`;
   else el.innerHTML="";
@@ -334,13 +346,23 @@ function viewDossier(){
       <button class="actbtn" onclick="fitini.createDossier()">+ NOUVEAU</button></div></div>
     <div class="win" style="max-width:720px"><div style="display:grid;grid-template-columns:140px 1fr 80px 110px;padding:11px 18px;font-size:10px;letter-spacing:.14em;color:var(--fit-text-faint);border-bottom:1px solid var(--fit-border);background:var(--fit-titlebar)"><span>ID</span><span>SUJET</span><span>SOURCES</span><span>CRÉÉ</span></div>${rows}</div></div>`;
 }
+function searchWin(d){
+  const checked=S.searchChecked;
+  const rows=(S.searchResults||[]).map(r=>`<div style="display:grid;grid-template-columns:26px 1fr;gap:8px;padding:10px 14px;border-bottom:1px solid var(--fit-grid-line);font-size:12px"><input type="checkbox" ${checked.has(r.id)?"checked":""} onclick="fitini.toggleCheck('${r.id}')" style="margin-top:3px"/><div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:baseline"><a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:var(--fit-green);font-weight:700;text-decoration:none">${esc(r.title)}</a><span style="color:var(--fit-text-faint);font-size:10px">${esc(r.platform||"")}${r.published_date?" \u00b7 "+esc(r.published_date):""}</span></div><div style="color:var(--fit-text-muted);margin-top:4px;line-height:1.45">${esc(r.preview||"")}</div></div></div>`).join("");
+  const body=S.searchBusy?`<div style="padding:16px;color:var(--fit-sage);font-size:12px">Recherche en cours\u2026</div>`
+    :S.searchError?`<div style="padding:16px;color:#e5534b;font-size:12px">${esc(S.searchError)}</div>`
+    :S.searchResults.length?`${rows}<div style="padding:12px 14px;display:flex;justify-content:flex-end"><button class="actbtn" onclick="fitini.collectChecked()">\u2193 T\u00c9L\u00c9CHARGER / ENREGISTRER (${checked.size})</button></div>`
+    :`<div style="padding:16px;color:var(--fit-text-faint);font-size:12px">Saisis une requ\u00eate (ex. \u00ab manifestations \u00bb) puis lance la recherche.</div>`;
+  return `<div class="win" style="max-width:900px;margin-bottom:18px"><div class="hd"><span>RECHERCHE DE SOURCES</span><span class="wc"></span></div><div class="rule"></div>
+    <div style="padding:14px 16px;display:flex;gap:10px;align-items:center"><input id="dossier-q" value="${esc(S.searchQ)}" oninput="fitini.setSearchQ(this.value)" onkeydown="if(event.key==='Enter')fitini.dossierSearch()" placeholder="Requ\u00eate sur \u00ab ${esc(d.name)} \u00bb\u2026" style="flex:1;background:var(--fit-surface-3);border:1px solid var(--fit-border);color:var(--fit-green);font-size:12px;padding:9px 12px;outline:none"/><button class="actbtn" onclick="fitini.dossierSearch()">RECHERCHER</button></div>
+    ${body}</div>`;
+}
 function viewDossierDetail(d){
   const srcs=(d.sources||[]);
   const list=srcs.length?srcs.map(x=>`<div style="display:grid;grid-template-columns:90px 1fr 110px 90px;padding:11px 16px;border-bottom:1px solid var(--fit-grid-line);font-size:12px;align-items:center"><span style="color:var(--fit-sage)">${esc(x.type||"src")}</span><span style="color:var(--fit-green)">${esc(x.title||x.url||x.id)}</span><span style="color:var(--fit-text-muted)">${esc(x.published_date||"")}</span><span style="color:var(--fit-text-muted)">${esc(x.platform||"")}</span></div>`).join("")
-    :`<div style="padding:16px;color:var(--fit-text-faint);font-size:12px">Aucune source versée. La recherche web (coche → télécharger) arrive à la prochaine étape.</div>`;
+    :`<div style="padding:16px;color:var(--fit-text-faint);font-size:12px">Aucune source versée. Lance une recherche, coche les sources pertinentes, puis « Télécharger ».</div>`;
   return `<div style="padding:26px 34px"><div style="display:flex;align-items:center;gap:14px;margin-bottom:18px"><button class="actbtn" onclick="fitini.closeDossier()">← DOSSIERS</button><div style="font-size:22px;letter-spacing:.1em">DOSSIER · ${esc(d.name)}</div><span style="color:var(--fit-text-faint);font-size:11px">${esc(d.id)}</span></div>
-    <div class="win" style="max-width:860px;margin-bottom:18px"><div style="padding:14px 16px;color:var(--fit-text-faint);font-size:11px;letter-spacing:.1em;border-bottom:1px solid var(--fit-border);background:var(--fit-titlebar)">RECHERCHE DE SOURCES</div>
-      <div style="padding:16px;color:var(--fit-text-muted);font-size:12px">Module de collecte web (sujet + requête → résultats cochables → téléchargement dans le dossier) — <span style="color:var(--fit-sage)">prochaine étape</span>.</div></div>
+    ${searchWin(d)}
     ${win("Sources du dossier ("+srcs.length+")",list)}</div>`;
 }
 function viewArchive(){
@@ -396,13 +418,13 @@ function showAlert(a){ S.alert=a; const m=$("modal-root"); if(m)m.innerHTML=aler
 
 /* ================= FLUX / WS ================= */
 function startFlux(){
-  resetFlux(); S.started=true; S.streaming=true; renderFluxCta(); renderAnalyzer();
+  resetFlux(); S.micError=null; S.started=true; S.streaming=true; renderFluxCta(); renderAnalyzer();
   const proto=location.protocol==="https:"?"wss:":"ws:";
   ws=new WebSocket(`${proto}//${location.host}/ws/intercept?token=${encodeURIComponent(S.token||"")}&domains=${encodeURIComponent(S.domain)}&subject=${encodeURIComponent(S.subject||"")}&source=${encodeURIComponent(S.interceptSource||"")}&mic=${S.micMode?"1":"0"}`);
   ws.onopen=()=>{S._reauthed=false;};
   ws.onmessage=ev=>{const m=JSON.parse(ev.data);
     if(m.type==="utterance")onUtterance(m); else if(m.type==="complete")onComplete(m);
-    else if(m.type==="error"){S.streaming=false;S.started=false;render();const up=$("int-up");if(up)up.textContent="Erreur : "+(m.detail||"source illisible")+" — pour l'écoute micro, installer faster-whisper + sounddevice côté serveur.";}};
+    else if(m.type==="error"){S.micError="Erreur : "+(m.detail||"source illisible")+" — pour l'écoute micro, installer faster-whisper + sounddevice côté serveur.";S.streaming=false;S.started=false;render();}};
   ws.onclose=(ev)=>{S.streaming=false;
     if(ev&&ev.code===4401&&!S._reauthed){S._reauthed=true;relogin().then(()=>startFlux()).catch(()=>{});return;}
     if(S.screen==="intercept"){renderFluxCta();renderAnalyzer();}};
@@ -435,6 +457,7 @@ function onUtterance(m){
 }
 function onComplete(m){ S.done=true;S.streaming=false;
   if(m.report){S.summary=m.report.summary||S.summary;S.relationships=m.report.relationships||S.relationships;S.timeline=m.report.timeline||S.timeline;}
+  if(S.micMode && !S.lines.length){S.micError="Aucune parole captée. Vérifie le micro / le loopback audio (ex. BlackHole), et que faster-whisper + sounddevice sont installés côté serveur.";S.done=false;S.started=false;}
   if(S.screen==="intercept"){renderFluxCta();renderAnalyzer();}}
 function buildMatrix(){ const rows=[],cell={},pair={};
   S.relationships.forEach(([a,b])=>{if(!pair[a]&&a!==b)pair[a]=b;});
@@ -490,7 +513,7 @@ function termExec(raw){ termPrint("▸ "+raw,"var(--fit-green)");
 
 /* ================= handlers ================= */
 window.fitini={
-  go:(k)=>{S.screen=k;S.domainsOpen=false;if(k==="dossier"){S.dossierId=null;S.dossierData=null;}render();if(k==="archive")loadArchive();if(k==="dossier")loadDossiers();},
+  go:(k)=>{S.screen=k;S.domainsOpen=false;S.winMin.clear();S.winMax=null;S.winClosed.clear();if(k==="dossier"){S.dossierId=null;S.dossierData=null;}render();if(k==="archive")loadArchive();if(k==="dossier")loadDossiers();},
   lock:()=>{if(ws){try{ws.close();}catch(e){}} S.screen="intercept";S.domainsOpen=false;resetFlux();render();},
   toggleDomains:()=>{S.domainsOpen=!S.domainsOpen;render();},
   setSubject:(v)=>{S.subject=v;},
@@ -512,8 +535,15 @@ window.fitini={
   setQuery:(v)=>{S.query=v;if(S.screen==="archive")render();},
   setDossierNew:(v)=>{S.dossierNew=v;},
   createDossier:async()=>{const n=(S.dossierNew||"").trim();if(!n)return;try{await api("/api/dossiers",{method:"POST",json:{name:n}});S.dossierNew="";await loadDossiers();}catch(e){}},
-  openDossier:async(id)=>{try{const d=await api("/api/dossier/"+id);S.dossierId=id;S.dossierData=d;render();}catch(e){}},
-  closeDossier:()=>{S.dossierId=null;S.dossierData=null;render();loadDossiers();},
+  openDossier:async(id)=>{S.searchQ="";S.searchResults=[];S.searchChecked=new Set();S.searchError=null;S.searchBusy=false;try{const d=await api("/api/dossier/"+id);S.dossierId=id;S.dossierData=d;render();}catch(e){}},
+  closeDossier:()=>{S.dossierId=null;S.dossierData=null;S.searchResults=[];S.searchChecked=new Set();S.searchQ="";render();loadDossiers();},
+  winMin:(k)=>{const key=decodeURIComponent(k);if(S.winMin.has(key))S.winMin.delete(key);else S.winMin.add(key);render();},
+  winMax:(k)=>{const key=decodeURIComponent(k);S.winMax=(S.winMax===key?null:key);render();},
+  winClose:(k)=>{const key=decodeURIComponent(k);S.winClosed.add(key);render();},
+  setSearchQ:(v)=>{S.searchQ=v;},
+  dossierSearch:async()=>{if(!S.dossierData)return;S.searchBusy=true;S.searchError=null;S.searchResults=[];S.searchChecked=new Set();render();try{const r=await api("/api/search?subject="+encodeURIComponent(S.dossierData.name)+"&query="+encodeURIComponent(S.searchQ||""));S.searchResults=r.candidates||[];S.searchError=r.error||null;}catch(e){S.searchError="Recherche indisponible.";}S.searchBusy=false;render();},
+  toggleCheck:(id)=>{if(S.searchChecked.has(id))S.searchChecked.delete(id);else S.searchChecked.add(id);render();},
+  collectChecked:async()=>{if(!S.dossierId)return;const sel=(S.searchResults||[]).filter(r=>S.searchChecked.has(r.id));if(!sel.length)return;try{const r=await api("/api/dossier/"+S.dossierId+"/collect",{method:"POST",json:{candidates:sel}});if(r.dossier)S.dossierData=r.dossier;S.searchResults=[];S.searchChecked=new Set();S.searchQ="";render();}catch(e){S.searchError="T\u00e9l\u00e9chargement impossible.";render();}},
   toggleSetting:(k)=>{S.settings[k]=!S.settings[k];render();saveSettings();},
   upload:(f)=>uploadFile(f),
 };

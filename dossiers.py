@@ -104,3 +104,13 @@ def add_sources(dossier_id: str, sources: List[Dict[str, Any]]) -> Optional[Dict
         meta.setdefault("sources", []).extend(sources)
         _write_meta(meta)
         return meta
+
+
+def save_source_file(dossier_id: str, source_id: str, text: str) -> str:
+    """Persist a downloaded source's text next to the dossier metadata."""
+    d = os.path.join(_dossier_dir(dossier_id), "sources")
+    os.makedirs(d, exist_ok=True)
+    path = os.path.join(d, source_id + ".txt")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text or "")
+    return path

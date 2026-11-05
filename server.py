@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 
+import hashlib
 import json
 import logging
 import os
@@ -46,6 +47,7 @@ from pydantic import BaseModel
 import db
 import dossiers
 import packs
+import web_collect
 import doc_ingest
 from audio_transcriber import AudioStreamTranscriber
 from auth import AuthManager
@@ -93,6 +95,10 @@ class SettingsBody(BaseModel):
 
 class DossierBody(BaseModel):
     name: str
+
+
+class CollectBody(BaseModel):
+    candidates: List[Dict[str, Any]]
 
 
 # ------------------------------- routes ------------------------------------ #
@@ -178,6 +184,46 @@ async def dossier_detail(dossier_id: str, _: str = Depends(require_auth)):
     if not d:
         raise HTTPException(status_code=404, detail="Dossier not found")
     return d
+
+
+@app.get("/api/search")
+async def web_search(subject: Optional[str] = Query(None),
+                     query: Optional[str] = Query(None),
+                     _: str = Depends(require_auth)):
+    """Discover candidate web sources (opt-in; no download). Errors are surfaced."""
+    try:
+        return {"candidates": web_collect.search(subject or "", query or ""), "error": None}
+    except web_collect.WebCollectError as exc:
+        return {"candidates": [], "error": str(exc)}
+    except Exception:
+        logging.getLogger("fitini").exception("web search failed")
+        return {"candidates": [], "error": "Recherche indisponible."}
+
+
+@app.post("/api/dossier/{dossier_id}/collect")
+async def dossier_collect(dossier_id: str, body: CollectBody, _: str = Depends(require_auth)):
+    """Download the checked candidates into the dossier (human-curated)."""
+    if not dossiers.get_dossier(dossier_id):
+        raise HTTPException(status_code=404, detail="Dossier not found")
+    saved: List[Dict[str, Any]] = []
+    errors: List[Dict[str, Any]] = []
+    for c in body.candidates:
+        src = dict(c)
+        src["captured_at"] = time.time()
+        src["status"] = "saved"
+        url = c.get("url")
+        try:
+            if url:
+                text = web_collect.fetch_text(url)
+                src["raw_text"] = text
+                src["content_hash"] = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+                dossiers.save_source_file(dossier_id, src.get("id", ""), text)
+        except Exception as exc:
+            errors.append({"id": c.get("id"), "error": str(exc)})
+            src["raw_text"] = ""
+        saved.append(src)
+    meta = dossiers.add_sources(dossier_id, saved)
+    return {"dossier": meta, "saved": len(saved), "errors": errors}
 
 
 # ---------------------------- engine helpers ------------------------------- #
