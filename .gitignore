@@ -16,3 +16,7 @@ fitini.db
 # Uploaded sources (runtime)
 uploads/
 dossiers/
+
+# Personal / generated artifacts (never commit)
+*.pdf
+fitini-rapport.txt

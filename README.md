@@ -33,7 +33,6 @@ coordonnée, CVE, violence…), s'il **déclenche une alerte** (`on_label` / `al
 | `db.py` | persistance SQLite (sessions, cibles, réglages) ; aucune donnée de démo |
 | `auth.py` | gate par token (démo-grade — à remplacer en production) |
 | `static/index.html` | interface : INTERCEPT · ANALYSE · REPORT · DOSSIER · ARCHIVE · CONFIG |
-| `corpus_analyze.py`, `fitini_query.py` | outils CLI (cœur Phase 1 / analyste), pas encore câblés à l'UI |
 
 ## Lancer
 ```bash
@@ -45,3 +44,7 @@ NER spaCy (optionnelle, serveur) :
 pip install spacy==3.7.6 && python -m spacy download fr_core_news_sm
 ```
 Désactiver la NER : `FITINI_NER=0`.
+
+## Auteur & licence
+Développé par **VD Info** — open source. Vous êtes libres de télécharger, utiliser et modifier le code.
+Les modèles (Whisper, OCR RapidOCR, spaCy) ne sont **pas inclus** dans le dépôt : ils sont téléchargés / servis côté serveur. Le code reste donc utilisable tel quel.
