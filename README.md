@@ -2,9 +2,8 @@
   <img src="static/fitini_logo.png" alt="Fitini" width="180">
 </p>
 
-<h1 align="center">Fitini — moteur d'aide à l'investigation</h1>
+<h1 align="center">Fitini — Le murs ont des oreilles</h1>
 
-<p align="center"><em>Hors-ligne · déterministe · tracé à la source</em></p>
 
 Fitini analyse des **sources texte et audio** (les fichiers de l'utilisateur, ou des sources web qu'il verse lui-même) pour mener une investigation : il extrait les entités d'intérêt, les corrèle, bâtit un graphe et une chronologie, flague les signaux, monte un **dossier d'enquête** et l'exporte — le tout **tracé à la source**. 
 
