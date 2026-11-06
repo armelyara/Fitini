@@ -20,3 +20,8 @@ dossiers/
 # Personal / generated artifacts (never commit)
 *.pdf
 fitini-rapport.txt
+
+# Packaging
+*.egg-info/
+build/
+dist/

@@ -56,10 +56,11 @@ from .audio_transcriber import AudioStreamTranscriber
 from .auth import AuthManager
 from .fitini_core import CorrelationEngine
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # project root (package is app/)
-CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
-STATIC_DIR = os.path.join(BASE_DIR, "static")
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+PKG_DIR = os.path.dirname(__file__)                 # packaged assets live here
+CONFIG_PATH = os.environ.get("FITINI_CONFIG", os.path.join(PKG_DIR, "config.json"))
+STATIC_DIR = os.path.join(PKG_DIR, "static")
+DATA_DIR = os.environ.get("FITINI_DATA", os.getcwd())  # runtime data: user's folder
+UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as fh:

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="static/fitini_logo.png" alt="Fitini" width="180">
+  <img src="fitini/static/fitini_logo.png" alt="Fitini" width="180">
 </p>
 
 <h1 align="center">Fitini — Les murs ont des oreilles</h1>
@@ -30,6 +30,7 @@ Toute **entité détectée** (personne, organisation, lieu, montant, GPS, IBAN, 
 | `fitini_core.py` | moteur : extraction (sélecteurs + lexique + NER) → corrélation → hypothèses/lock → alertes → timeline |
 | `packs.py` | charge et fusionne les packs de domaine sélectionnés |
 | `server.py` | FastAPI : auth, WebSocket d'analyse, sessions, **dossiers**, **recherche web**, **export** |
+| `cli.py` | commande `fitini` : `serve` (interface) et `analyze` (ligne de commande) |
 | `audio_transcriber.py` | transcription micro / fichier (faster-whisper, VAD énergétique, hors boucle asyncio) |
 | `doc_ingest.py` | extraction de texte PDF (PyMuPDF) / DOCX / images (OCR RapidOCR) |
 | `dossiers.py` | store local des dossiers d'enquête (fichiers, hors-ligne) |
@@ -44,30 +45,37 @@ Toute **entité détectée** (personne, organisation, lieu, montant, GPS, IBAN, 
 ## Structure du projet
 ```
 Fitini/
-├── app/                 # package Python (moteur + serveur + modules — voir tableau)
-│   ├── server.py        # FastAPI — point d'entrée : app.server:app
-│   ├── fitini_core.py
-│   └── …                # packs, dossiers, web_collect, dossier_analyze/export, db, auth…
-├── static/              # interface web + logo (servis par le serveur)
-│   ├── index.html
-│   └── fitini_logo.png
-├── profiles/            # packs de domaine (cybersécurité / investigation / santé)
-├── config.json          # auth, pipeline, réglages par défaut
+├── fitini/              # package installable (pip)
+│   ├── server.py        # FastAPI — point d'entrée : fitini.server:app
+│   ├── cli.py           # commande `fitini` (serve / analyze)
+│   ├── fitini_core.py   # moteur ; + packs, dossiers, web_collect, dossier_analyze/export, db, auth…
+│   ├── static/          # interface web + logo (servis par le serveur)
+│   ├── profiles/        # packs de domaine (cybersécurité / investigation / santé)
+│   └── config.json      # auth, pipeline, réglages par défaut
+├── pyproject.toml       # métadonnées + dépendances (installable)
 ├── requirements.txt
-├── LICENSE
+├── LICENSE · NOTICE
 └── README.md
 ```
-Données d'exécution non versionnées (voir `.gitignore`) : `uploads/`, `dossiers/`, `fitini.db`, `*.pdf`.
+Données d'exécution créées dans le dossier courant, non versionnées : `uploads/`, `dossiers/`, `fitini.db`.
 
 ## Lancer
 ```bash
-pip install -r requirements.txt
-uvicorn app.server:app --port 8000
-# puis ouvrir http://127.0.0.1:8000
+# Installation (depuis les sources ; à terme : pip install fitini)
+pip install .
+# extras optionnels : audio (micro), OCR, NER
+pip install ".[audio,ocr,ner]"
+
+# Interface web
+fitini serve --open                 # ouvre http://127.0.0.1:8000
+# (dev : uvicorn fitini.server:app --reload)
+
+# Ligne de commande, sans interface
+fitini analyze mon_dossier/ --subject "nom, mot-clé" --format md --out dossier.md
 ```
 Recherche web (optionnelle, une clé suffit) :
 ```bash
-FITINI_WEB=1 EXA_API_KEY=... uvicorn app.server:app --port 8000
+FITINI_WEB=1 EXA_API_KEY=... fitini serve
 # ou TAVILY_API_KEY=...
 ```
 Les **modèles** (Whisper, OCR RapidOCR, spaCy) ne sont **pas inclus** dans le dépôt : ils sont téléchargés / servis côté serveur. Le code reste utilisable tel quel.

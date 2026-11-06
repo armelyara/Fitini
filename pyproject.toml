@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fitini"
+version = "0.1.0"
+description = "Fitini — du cas au dossier : moteur d'aide à l'investigation, hors-ligne et déterministe."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "VD Info" }]
+keywords = ["investigation", "osint", "transcription", "dossier", "offline"]
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "websockets>=13",
+  "python-multipart>=0.0.9",
+  "pymupdf>=1.24",
+  "python-docx>=1.1",
+  "fpdf2>=2.7",
+]
+
+[project.optional-dependencies]
+audio = ["faster-whisper>=1.0", "sounddevice>=0.5", "numpy>=1.26"]
+ocr = ["rapidocr-onnxruntime>=1.3"]
+ner = ["spacy>=3.7"]
+all = ["faster-whisper>=1.0", "sounddevice>=0.5", "numpy>=1.26", "rapidocr-onnxruntime>=1.3", "spacy>=3.7"]
+
+[project.scripts]
+fitini = "fitini.cli:main"
+
+[tool.setuptools]
+packages = ["fitini"]
+
+[tool.setuptools.package-data]
+fitini = ["static/*", "profiles/*/*.json", "config.json"]

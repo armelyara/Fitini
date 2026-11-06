@@ -11,7 +11,7 @@ import os
 
 from .fitini_core import combine_profiles
 
-HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # project root
+HERE = os.path.dirname(os.path.abspath(__file__))  # packaged profiles live here
 
 # UI domain id -> knowledge pack file(s) under profiles/
 DOMAIN_PACKS = {

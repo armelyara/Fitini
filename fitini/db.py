@@ -15,7 +15,7 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
-DB_PATH = os.environ.get("FITINI_DB", os.path.join(os.path.dirname(os.path.dirname(__file__)), "fitini.db"))
+DB_PATH = os.environ.get("FITINI_DB", os.path.join(os.environ.get("FITINI_DATA", os.getcwd()), "fitini.db"))
 _LOCK = threading.Lock()
 
 

@@ -20,7 +20,7 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # project root
+BASE_DIR = os.environ.get("FITINI_DATA", os.getcwd())  # runtime data: user's folder
 DOSSIERS_DIR = os.environ.get("FITINI_DOSSIERS", os.path.join(BASE_DIR, "dossiers"))
 _LOCK = threading.Lock()
 
