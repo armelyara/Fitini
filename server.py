@@ -41,7 +41,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import (Depends, FastAPI, File, Header, HTTPException, Query,
                      UploadFile, WebSocket, WebSocketDisconnect)
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -50,6 +50,7 @@ import dossiers
 import packs
 import web_collect
 import dossier_analyze
+import dossier_export
 import doc_ingest
 from audio_transcriber import AudioStreamTranscriber
 from auth import AuthManager
@@ -210,6 +211,28 @@ async def dossier_analyze_ep(dossier_id: str, selectors: Optional[str] = Query(N
     if not d:
         raise HTTPException(status_code=404, detail="Dossier not found")
     return dossier_analyze.analyze(d, selectors or "")
+
+
+@app.get("/api/dossier/{dossier_id}/export")
+async def dossier_export_ep(dossier_id: str, format: str = Query("md"),
+                            selectors: Optional[str] = Query(None),
+                            _: str = Depends(require_auth)):
+    """Export a dossier (juxtaposition + entities + sources) as Markdown or PDF."""
+    d = dossiers.get_dossier(dossier_id)
+    if not d:
+        raise HTTPException(status_code=404, detail="Dossier not found")
+    analysis = dossier_analyze.analyze(d, selectors or "")
+    name = (d.get("name") or "dossier").strip().replace(" ", "_")[:40] or "dossier"
+    if format == "pdf":
+        try:
+            data = dossier_export.to_pdf(d, analysis)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return Response(content=data, media_type="application/pdf",
+                        headers={"Content-Disposition": 'attachment; filename="%s.pdf"' % name})
+    md = dossier_export.to_markdown(d, analysis)
+    return Response(content=md, media_type="text/markdown; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="%s.md"' % name})
 
 
 @app.post("/api/dossier/{dossier_id}/collect")

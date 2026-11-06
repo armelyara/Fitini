@@ -22,3 +22,6 @@ numpy==1.26.4
 
 # ---- Phase 3 web collection : NO extra dependency (stdlib urllib) -----------
 # Opt-in at runtime only:  FITINI_WEB=1  +  EXA_API_KEY=...  (or TAVILY_API_KEY=...)
+
+# ---- Dossier export to PDF (Markdown export needs nothing) ------------------
+fpdf2==2.7.9
