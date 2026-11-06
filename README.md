@@ -6,9 +6,9 @@
 
 <p align="center"><em>Hors-ligne · déterministe · tracé à la source</em></p>
 
-Fitini analyse des **sources texte et audio** (les fichiers de l'utilisateur, ou des sources web qu'il verse lui-même) pour mener une investigation : il extrait les entités d'intérêt, les corrèle, bâtit un graphe et une chronologie, flague les signaux, monte un **dossier d'enquête** et l'exporte — le tout **tracé à la source**. Le cœur est **hors-ligne et déterministe** (aucun LLM requis).
+Fitini analyse des **sources texte et audio** (les fichiers de l'utilisateur, ou des sources web qu'il verse lui-même) pour mener une investigation : il extrait les entités d'intérêt, les corrèle, bâtit un graphe et une chronologie, flague les signaux, monte un **dossier d'enquête** et l'exporte — le tout **tracé à la source**. 
 
-Trois domaines (packs de connaissances) : **cybersécurité (CTI)**, **justice / e-Discovery / OSINT**, **biomédical / pharmacovigilance**.
+Trois domaines (packs de connaissances) : **cybersécurité (CTI)**, **justice / Journalisme**, **santé / biomédical / pharmacovigilance**.
 
 ## Fonctions clés
 - **INTERCEPT** — écoute micro en direct (FR/EN auto, transcription faster-whisper, VAD énergétique), flags et flèches en temps réel, modal d'alerte.
