@@ -74,4 +74,4 @@ FITINI_WEB=1 EXA_API_KEY=... uvicorn app.server:app --port 8000
 Les **modèles** (Whisper, OCR RapidOCR, spaCy) ne sont **pas inclus** dans le dépôt : ils sont téléchargés / servis côté serveur. Le code reste utilisable tel quel.
 
 ## Auteur & licence
-Développé par **VD Info**. Open source sous licence **Apache-2.0** (voir [`LICENSE`](LICENSE) et [`NOTICE`](NOTICE)) — libre de télécharger, utiliser, modifier et redistribuer, avec clause de brevet.
+Développé par **The Day Info**. Open source sous licence **Apache-2.0** (voir [`LICENSE`](LICENSE) et [`NOTICE`](NOTICE)) — libre de télécharger, utiliser, modifier et redistribuer, avec clause de brevet.
