@@ -45,7 +45,10 @@ Toute **entité détectée** (personne, organisation, lieu, montant, GPS, IBAN, 
 ## Structure du projet
 ```
 Fitini/
-├── *.py                 # moteur, serveur, modules (voir tableau ci-dessus)
+├── app/                 # package Python (moteur + serveur + modules — voir tableau)
+│   ├── server.py        # FastAPI — point d'entrée : app.server:app
+│   ├── fitini_core.py
+│   └── …                # packs, dossiers, web_collect, dossier_analyze/export, db, auth…
 ├── static/              # interface web + logo (servis par le serveur)
 │   ├── index.html
 │   └── fitini_logo.png
@@ -60,15 +63,15 @@ Données d'exécution non versionnées (voir `.gitignore`) : `uploads/`, `dossie
 ## Lancer
 ```bash
 pip install -r requirements.txt
-uvicorn server:app --port 8000
+uvicorn app.server:app --port 8000
 # puis ouvrir http://127.0.0.1:8000
 ```
 Recherche web (optionnelle, une clé suffit) :
 ```bash
-FITINI_WEB=1 EXA_API_KEY=... uvicorn server:app --port 8000
+FITINI_WEB=1 EXA_API_KEY=... uvicorn app.server:app --port 8000
 # ou TAVILY_API_KEY=...
 ```
 Les **modèles** (Whisper, OCR RapidOCR, spaCy) ne sont **pas inclus** dans le dépôt : ils sont téléchargés / servis côté serveur. Le code reste utilisable tel quel.
 
 ## Auteur & licence
-Développé par **VD Info**. Open source sous licence **MIT** (voir [`LICENSE`](LICENSE)) — libre de télécharger, utiliser, modifier et redistribuer.
+Développé par **VD Info**. Open source sous licence **Apache-2.0** (voir [`LICENSE`](LICENSE) et [`NOTICE`](NOTICE)) — libre de télécharger, utiliser, modifier et redistribuer, avec clause de brevet.

@@ -66,8 +66,8 @@ def analyze(dossier: Dict[str, Any], extra_selectors: str = "") -> Dict[str, Any
     # 2) entities via the open-extraction engine (deterministic, no spaCy)
     entities: List[Dict[str, Any]] = []
     try:
-        from fitini_core import CorrelationEngine
-        import packs
+        from .fitini_core import CorrelationEngine
+        from . import packs
         try:
             profile = packs.load_domains(["justice"])
         except Exception:

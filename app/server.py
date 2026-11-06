@@ -45,18 +45,18 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-import db
-import dossiers
-import packs
-import web_collect
-import dossier_analyze
-import dossier_export
-import doc_ingest
-from audio_transcriber import AudioStreamTranscriber
-from auth import AuthManager
-from fitini_core import CorrelationEngine
+from . import db
+from . import dossiers
+from . import packs
+from . import web_collect
+from . import dossier_analyze
+from . import dossier_export
+from . import doc_ingest
+from .audio_transcriber import AudioStreamTranscriber
+from .auth import AuthManager
+from .fitini_core import CorrelationEngine
 
-BASE_DIR = os.path.dirname(__file__)
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # project root (package is app/)
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")

@@ -9,9 +9,9 @@ combine_profiles.
 import json
 import os
 
-from fitini_core import combine_profiles
+from .fitini_core import combine_profiles
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # project root
 
 # UI domain id -> knowledge pack file(s) under profiles/
 DOMAIN_PACKS = {
