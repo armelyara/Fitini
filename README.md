@@ -72,7 +72,6 @@ pip install "fitini[audio,ocr,ner]"
 
 # Interface web
 fitini serve --open                 # ouvre http://127.0.0.1:8000
-# (dev : uvicorn fitini.server:app --reload)
 
 # Ligne de commande, sans interface
 fitini analyze mon_dossier/ --subject "nom, mot-clé" --format md --out dossier.md
