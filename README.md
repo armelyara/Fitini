@@ -5,7 +5,7 @@
 <h1 align="center">Fitini — Les murs ont des oreilles</h1>
 
 
-Fitini analyse des **sources texte et audio** (les fichiers de l'utilisateur, ou des sources web qu'il verse lui-même) pour mener une investigation : il extrait les entités d'intérêt, les corrèle, bâtit un graphe et une chronologie, flague les signaux, monte un **dossier d'enquête** et l'exporte — le tout **tracé à la source**. 
+Fitini analyse des **sources texte et audio** (les fichiers de l'utilisateur, ou des sources web qu'il verse lui-même) pour mener une investigation : il extrait les entités d'intérêt, les corrèle, bâtit un graphe et une chronologie, flague les signaux et monte un **dossier d'enquête**
 
 Trois domaines (packs de connaissances) : **cybersécurité (CTI)**, **justice / Journalisme**, **santé / biomédical / pharmacovigilance**.
 
@@ -13,11 +13,11 @@ Trois domaines (packs de connaissances) : **cybersécurité (CTI)**, **justice /
 - **INTERCEPT** — écoute micro en direct (FR/EN auto, transcription faster-whisper, VAD énergétique), flags et flèches en temps réel, modal d'alerte.
 - **ANALYSE** — dépôt de fichiers (PDF / DOCX / images OCR / audio) → extraction → corrélation → rapport.
 - **DOSSIER** — monte un dossier autour d'un sujet : **recherche web** (opt-in) → résultats **cochables** → téléchargement dans le dossier → **juxtaposition avant/maintenant** datée et sourcée → **export Markdown / PDF**.
-- **Rapport déterministe** — ce qui ressort, qui est lié à qui, chronologie, flags, passages-clés **sourcés**. Aucun jugement émis : l'outil surface et aligne, **l'humain juge**.
+- **Rapport déterministe** — ce qui ressort, qui est lié à qui, chronologie, flags, passages-clés **sourcés**.
 
 ## Extraction ouverte
 - **Sélecteurs génériques** (sans lexique) : e-mail, téléphone, IP, URL, @pseudo, montants/FCFA, dates, coordonnées GPS, CVE, IBAN.
-- **NER spaCy** (optionnelle) : PERSON / ORG / LIEU / DATE / MONEY, même pour des entités jamais listées. Repli propre si le modèle est absent.
+- **NER spaCy** : PERSON / ORG / LIEU / DATE / MONEY, même pour des entités jamais listées. Repli propre si le modèle est absent.
 - **Watchlist utilisateur** : le sujet / les sélecteurs saisis pilotent flags, priorité et alertes.
 - Les packs de domaine (`profiles/*.json`) apportent une connaissance métier **optionnelle**, jamais la condition d'entrée.
 
