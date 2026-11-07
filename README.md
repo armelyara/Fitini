@@ -4,6 +4,10 @@
 
 <h1 align="center">Fitini — Les murs ont des oreilles</h1>
 
+<p align="center">
+  <a href="https://pypi.org/project/fitini/"><img src="https://img.shields.io/pypi/v/fitini.svg" alt="PyPI"></a>
+</p>
+
 
 Fitini analyse des **sources texte et audio** (les fichiers de l'utilisateur, ou des sources web qu'il verse lui-même) pour mener une investigation : il extrait les entités d'intérêt, les corrèle, bâtit un graphe et une chronologie, flague les signaux et monte un **dossier d'enquête**
 
@@ -61,10 +65,10 @@ Données d'exécution créées dans le dossier courant, non versionnées : `uplo
 
 ## Lancer
 ```bash
-# Installation (depuis les sources ; à terme : pip install fitini)
-pip install .
+# Installation
+pip install fitini
 # extras optionnels : audio (micro), OCR, NER
-pip install ".[audio,ocr,ner]"
+pip install "fitini[audio,ocr,ner]"
 
 # Interface web
 fitini serve --open                 # ouvre http://127.0.0.1:8000

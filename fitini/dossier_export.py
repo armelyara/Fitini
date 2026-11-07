@@ -76,7 +76,7 @@ def to_markdown(dossier: Dict[str, Any], analysis: Dict[str, Any]) -> str:
         "---",
         "_Rapport déterministe : il organise et trace les éléments extraits, "
         "il n'émet aucun jugement. Vérifier avant d'agir._",
-        "_Développé par VD Info — open source._",
+        "_Développé par The Day Info — open source._",
     ]
     return "\n".join(out)
 
@@ -160,7 +160,7 @@ def to_pdf(dossier: Dict[str, Any], analysis: Dict[str, Any]) -> bytes:
     pdf.ln(3)
     line("Rapport deterministe : il trace les elements extraits, il n'emet aucun "
          "jugement. Verifier avant d'agir.", "I", 9)
-    line("Developpe par VD Info - open source.", "I", 9)
+    line("Developpe par The Day Info - open source.", "I", 9)
 
     out = pdf.output()
     return bytes(out)

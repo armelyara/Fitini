@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fitini"
-version = "0.1.0"
+version = "0.1.1"
 description = "Fitini — du cas au dossier : moteur d'aide à l'investigation, hors-ligne et déterministe."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
-authors = [{ name = "VD Info" }]
+authors = [{ name = "The Day Info" }]
 keywords = ["investigation", "osint", "transcription", "dossier", "offline"]
 dependencies = [
   "fastapi>=0.115",
