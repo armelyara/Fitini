@@ -114,3 +114,21 @@ def save_source_file(dossier_id: str, source_id: str, text: str) -> str:
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(text or "")
     return path
+
+
+def set_source_orientation(dossier_id: str, source_id: str, orientation: str):
+    """Tag one source's political/editorial orientation (analyst-set)."""
+    with _LOCK:
+        meta = _read_meta(dossier_id)
+        if meta is None:
+            return None
+        found = False
+        for src in meta.get("sources", []):
+            if src.get("id") == source_id:
+                src["orientation"] = orientation
+                found = True
+                break
+        if not found:
+            return None
+        _write_meta(meta)
+        return meta

@@ -329,12 +329,12 @@
       summary: { locked: null, leading: null, entities: [] }, relationships: [], hypotheses: [], timeline: [], flags: [], locations: [],
       flagQueue: [], busyFlags: false,
       results: [], filterEnt: null, termOpen: false, alert: null, alertedKeys: new Set(),
-      termLines: [{ t: "Fitini · terminal déterministe — tapez `help`.", c: "var(--fit-sage)" }],
+      termLines: [{ t: "Fitini terminal — tapez `help`.", c: "var(--fit-sage)" }],
       crossOpen: false, query: "", archive: [], settings: { vad: true, diarize: true, redact: false, autolock: true },
       dossiers: [], dossierId: null, dossierData: null, dossierNew: "",
       winMin: new Set(), winMax: null, winClosed: new Set(), micError: null,
       searchQ: "", searchResults: [], searchChecked: new Set(), searchError: null, searchBusy: false,
-      dossierAnalysis: null, exportError: null,
+      dossierAnalysis: null, exportError: null, juxFilter: "all", dossierUploadMsg: "",
     };
     let ws = null;
     function emptyRows() { return []; }
@@ -400,7 +400,7 @@
       <nav style="width:208px;border-right:1px solid var(--fit-border);background:var(--fit-surface-3);display:flex;flex-direction:column;padding:16px 0;min-height:0">
         <div style="font-size:10px;letter-spacing:.24em;color:var(--fit-text-faint);padding:0 18px 12px">NAVIGATION</div>
         ${nav}
-        <div style="margin-top:auto;padding:14px 18px;border-top:1px solid var(--fit-border);font-size:10px;letter-spacing:.1em;color:var(--fit-text-faint);line-height:1.7">OPÉRATEUR<br><span style="color:var(--fit-sage)">${esc(S.opId)}</span><br>HORS-LIGNE · DÉTERMINISTE</div>
+        <div style="margin-top:auto;padding:14px 18px;border-top:1px solid var(--fit-border);font-size:10px;letter-spacing:.1em;color:var(--fit-text-faint);line-height:1.7">OPÉRATEUR<br><span style="color:var(--fit-sage)">${esc(S.opId)}</span><br>HORS-LIGNE</div>
       </nav>
       <main style="min-height:0;min-width:0;overflow:auto;position:relative">${main}</main>
     </div>
@@ -524,7 +524,7 @@
       const L = []; const dom = (S.domain || "").toUpperCase();
       const ents = S.summary.entities || [], rels = S.relationships || [], flags = S.flags || [], hyps = S.hypotheses || [];
       const tl = (S.timeline || []).filter(e => e.kind !== "lead");
-      L.push("RAPPORT DE SYNTHÈSE — FITINI  (déterministe · tracé aux sources)");
+      L.push("RAPPORT DE SYNTHÈSE — FITINI");
       L.push("Domaine(s) : " + dom + "   ·   Généré : " + new Date().toLocaleString());
       if (S.subject) L.push("Sujet suivi : " + S.subject);
       L.push("");
@@ -539,7 +539,7 @@
       if (flags.length) { L.push("SIGNAUX / ANOMALIES"); flags.forEach(f => L.push("- [" + (f.urgency || "") + "] " + f.name + (f.value ? " · " + f.value : "") + " — " + (f.message || ""))); L.push(""); }
       const src = new Set(); tl.forEach(e => { if (e.source) src.add(e.source); });
       if (src.size) { L.push("SOURCES");[...src].forEach(s => L.push("- " + s)); L.push(""); }
-      L.push("— Rapport déterministe : il organise et trace les éléments extraits, il n'émet pas de jugement. Vérifier avant d'agir.");
+      L.push("— Rapport : il organise et trace les éléments extraits. Vérifier avant d'agir.");
       return L.join("\n");
     }
 
@@ -575,7 +575,7 @@
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--fit-border)">
       <span style="font-size:10px;letter-spacing:.18em;color:var(--fit-text-faint)">ACTIONS</span>${acts}
       <span style="margin-left:auto;font-size:10px;color:var(--fit-text-faint)">${esc(S.domain.toUpperCase())}</span></div>
-    <div style="margin-bottom:20px">${win("Rapport de synthèse (déterministe)", `<div style="padding:12px 16px">
+    <div style="margin-bottom:20px">${win("Rapport de synthèse", `<div style="padding:12px 16px">
       <div style="display:flex;gap:8px;margin-bottom:10px"><button class="actbtn" onclick="fitini.copyBrief()">⧉ Copier</button><button class="actbtn" onclick="fitini.downloadBrief()">⭳ Télécharger .txt</button></div>
       <pre style="white-space:pre-wrap;font-size:12px;line-height:1.55;color:var(--fit-text-dim);margin:0;max-height:360px;overflow:auto">${esc(buildBrief())}</pre></div>`)}</div>
     <div style="margin-bottom:18px">${win("Corpus · Transcription", `<div style="padding:14px 16px;max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:11px">${wsLines}</div>`)}</div>
@@ -625,25 +625,53 @@
     <div style="padding:14px 16px;display:flex;gap:10px;align-items:center"><input id="dossier-q" value="${esc(S.searchQ)}" oninput="fitini.setSearchQ(this.value)" onkeydown="if(event.key==='Enter')fitini.dossierSearch()" placeholder="Requ\u00eate sur \u00ab ${esc(d.name)} \u00bb\u2026" style="flex:1;background:var(--fit-surface-3);border:1px solid var(--fit-border);color:var(--fit-green);font-size:12px;padding:9px 12px;outline:none"/><button class="actbtn" onclick="fitini.dossierSearch()">RECHERCHER</button></div>
     ${body}</div>`;
     }
+    const ORIENT = {
+      "media": { l: "Média", c: "#78a890" },
+      "pro-gov": { l: "Pro-pouvoir", c: "#d8b24a" },
+      "pro-opp": { l: "Pro-opposition", c: "#5aa9e6" },
+      "intl-ngo": { l: "ONG / int'l", c: "#38ef7d" },
+      "source": { l: "Source", c: "#8a9a92" },
+      "unknown": { l: "Inconnu", c: "#6b7772" }
+    };
+    function orientInfo(o) { return ORIENT[o] || ORIENT["unknown"]; }
+    function orientBadge(o) { const i = orientInfo(o || "unknown"); return `<span style="font-size:9px;padding:1px 7px;border:1px solid ${i.c};color:${i.c};border-radius:2px;margin-left:2px">${esc(i.l)}</span>`; }
+    function highlight(text, terms) {
+      const low = (text || "").toLowerCase(); const r = [];
+      (terms || []).forEach(t => { if (!t) return; const tl = t.toLowerCase(); let i = 0; while (true) { const idx = low.indexOf(tl, i); if (idx < 0) break; r.push([idx, idx + t.length]); i = idx + t.length; } });
+      if (!r.length) return esc(text || "");
+      r.sort((a, b) => a[0] - b[0]);
+      const m = [r[0]]; for (let k = 1; k < r.length; k++) { const last = m[m.length - 1]; if (r[k][0] <= last[1]) last[1] = Math.max(last[1], r[k][1]); else m.push(r[k]); }
+      let out = "", pos = 0;
+      m.forEach(rg => { out += esc(text.slice(pos, rg[0])) + `<b style="color:var(--fit-green)">` + esc(text.slice(rg[0], rg[1])) + `</b>`; pos = rg[1]; });
+      out += esc(text.slice(pos)); return out;
+    }
+    function juxList(passages) { const f = S.juxFilter; return (f && f !== "all") ? (passages || []).filter(p => (p.orientation || "unknown") === f) : (passages || []); }
+    function juxFilterBar(passages) {
+      const present = []; (passages || []).forEach(p => { const o = p.orientation || "unknown"; if (present.indexOf(o) < 0) present.push(o); });
+      if (present.length < 2) return "";
+      const chip = (o, label) => `<button class="actbtn" style="padding:4px 10px;${(S.juxFilter || "all") === o ? "background:var(--fit-green);color:var(--fit-ink-on-green)" : ""}" onclick="fitini.setJuxFilter('${o}')">${esc(label)}</button>`;
+      return `<div style="display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--fit-grid-line)">${chip("all", "Toutes")}${present.map(o => chip(o, orientInfo(o).l)).join("")}</div>`;
+    }
     function analysisBlock() {
       const a = S.dossierAnalysis; if (!a) return "";
       if (a.busy) return `<div style="max-width:900px;margin-top:14px;color:var(--fit-sage);font-size:12px">Analyse en cours\u2026</div>`;
       if (a.error) return `<div style="max-width:900px;margin-top:14px;color:#e5534b;font-size:12px">${esc(a.error)}</div>`;
       const sel = (a.selectors || []).join(", ");
-      const rows = (a.passages || []).map(p => `<div style="padding:12px 16px;border-bottom:1px solid var(--fit-grid-line);font-size:12px"><div style="display:flex;gap:10px;align-items:baseline;margin-bottom:4px"><span style="color:var(--fit-sage);font-weight:700;min-width:88px">${esc(p.date || "\u2014")}</span><a href="${esc(p.url)}" target="_blank" rel="noopener" style="color:var(--fit-text-muted);font-size:10px;text-decoration:none">${esc(p.title || p.platform || "source")}</a></div><div style="color:var(--fit-text);line-height:1.5">${esc(p.passage)}</div><div style="margin-top:4px;color:var(--fit-sage);font-size:10px">\u21b3 ${esc((p.matched || []).join(", "))}</div></div>`).join("")
+      const rows = juxList(a.passages).map(p => `<div style="padding:12px 16px;border-bottom:1px solid var(--fit-grid-line);font-size:12px"><div style="display:flex;gap:10px;align-items:baseline;margin-bottom:4px"><span style="color:var(--fit-sage);font-weight:700;min-width:88px">${esc(p.date || "\u2014")}</span><a href="${esc(p.url)}" target="_blank" rel="noopener" style="color:var(--fit-text-muted);font-size:10px;text-decoration:none">${esc(p.title || p.platform || "source")}</a>${orientBadge(p.orientation)}</div><div style="color:var(--fit-text);line-height:1.5">${highlight(p.passage, p.matched)}</div><div style="margin-top:4px;color:var(--fit-sage);font-size:10px">\u21b3 ${esc((p.matched || []).join(", "))}</div></div>`).join("")
         || `<div style="padding:16px;color:var(--fit-text-faint);font-size:12px">Aucun passage mentionnant \u00ab ${esc(sel)} \u00bb dans les sources vers\u00e9es.</div>`;
       const ents = (a.entities || []).slice(0, 24).map(e => `<span style="font-size:11px;padding:5px 10px;border:1px solid var(--fit-green-dim);color:var(--fit-green);background:var(--fit-surface-2)">${esc(e.name)} <span style="color:var(--fit-text-faint)">${e.count || ""}</span></span>`).join("") || "\u2014";
       return `<div style="max-width:900px;margin-top:16px">
-    ${win("Juxtaposition \u2014 \u00ab " + sel + " \u00bb dans le temps (" + (a.passages || []).length + ")", rows)}
+    ${win("Juxtaposition \u2014 \u00ab " + sel + " \u00bb dans le temps (" + (a.passages || []).length + ")", juxFilterBar(a.passages) + rows)}
     <div style="height:14px"></div>
     ${win("Entit\u00e9s extraites", `<div style="padding:14px 16px;display:flex;flex-wrap:wrap;gap:8px">${ents}</div>`)}
   </div>`;
     }
     function viewDossierDetail(d) {
       const srcs = (d.sources || []);
-      const list = srcs.length ? srcs.map(x => `<div style="display:grid;grid-template-columns:90px 1fr 110px 90px;padding:11px 16px;border-bottom:1px solid var(--fit-grid-line);font-size:12px;align-items:center"><span style="color:var(--fit-sage)">${esc(x.type || "src")}</span><span style="color:var(--fit-green)">${esc(x.title || x.url || x.id)}</span><span style="color:var(--fit-text-muted)">${esc(x.published_date || "")}</span><span style="color:var(--fit-text-muted)">${esc(x.platform || "")}</span></div>`).join("")
+      const list = srcs.length ? srcs.map(x => `<div style="display:grid;grid-template-columns:90px 1fr 100px 150px;padding:11px 16px;border-bottom:1px solid var(--fit-grid-line);font-size:12px;align-items:center"><span style="color:var(--fit-sage)">${esc(x.type || "src")}</span><span style="color:var(--fit-green)">${esc(x.title || x.url || x.id)}</span><span style="color:var(--fit-text-muted)">${esc(x.published_date || "")}</span><select onchange="fitini.setOrientation('${x.id}', this.value)" style="background:var(--fit-surface-3);border:1px solid var(--fit-border);color:var(--fit-text-muted);font-size:10px;padding:3px 4px;max-width:150px">${["unknown", "media", "pro-gov", "pro-opp", "intl-ngo", "source"].map(o => `<option value="${o}" ${((x.orientation || "unknown") === o) ? "selected" : ""}>${esc(orientInfo(o).l)}</option>`).join("")}</select></div>`).join("")
         : `<div style="padding:16px;color:var(--fit-text-faint);font-size:12px">Aucune source versée. Lance une recherche, coche les sources pertinentes, puis « Télécharger ».</div>`;
       return `<div style="padding:26px 34px"><div style="display:flex;align-items:center;gap:14px;margin-bottom:18px"><button class="actbtn" onclick="fitini.closeDossier()">← DOSSIERS</button><div style="font-size:22px;letter-spacing:.1em">DOSSIER · ${esc(d.name)}</div><span style="color:var(--fit-text-faint);font-size:11px">${esc(d.id)}</span></div>
+    <div class="win" style="max-width:900px;margin-bottom:18px"><div class="hd"><span>AJOUTER DES FICHIERS AU DOSSIER</span><span class="wc"></span></div><div class="rule"></div><div style="padding:14px 16px"><input type="file" multiple accept=".pdf,.docx,.txt,.md,.csv,audio/*,image/*" onchange="fitini.uploadToDossier(this.files)" style="color:var(--fit-text-muted);font-size:12px"/><div style="font-size:11px;color:var(--fit-text-faint);margin-top:8px">PDF · DOCX · TXT · images (OCR) · audio — extrait/transcrit et versé dans le dossier, hors-ligne.</div><div style="margin-top:8px;font-size:12px;color:var(--fit-sage)">${esc(S.dossierUploadMsg || "")}</div></div></div>
     ${searchWin(d)}
     ${win("Sources du dossier (" + srcs.length + ")", list)}
     ${srcs.length ? `<div style="max-width:900px;margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button class="actbtn" onclick="fitini.analyzeDossier()">\u26a1 ANALYSER LE DOSSIER (avant / maintenant)</button><button class="actbtn" onclick="fitini.exportDossier('md')">\u2b07 EXPORT MD</button><button class="actbtn" onclick="fitini.exportDossier('pdf')">\u2b07 EXPORT PDF</button>${S.exportError ? `<span style="color:#e5534b;font-size:11px">${esc(S.exportError)}</span>` : ""}</div>` : ""}
@@ -671,7 +699,7 @@
     <button onclick="fitini.toggleSetting('${k}')" style="width:40px;height:20px;border:1px solid ${on ? "var(--fit-green)" : "#2c3233"};background:${on ? "rgba(56,239,125,.15)" : "#0b0d0d"};position:relative;padding:0"><span style="position:absolute;top:1px;left:${on ? "21px" : "1px"};width:16px;height:16px;background:${on ? "var(--fit-green)" : "#4e5856"};transition:left .15s"></span></button></div>`;
       };
       return `<div style="padding:26px 34px;max-width:680px"><div style="font-size:22px;letter-spacing:.1em;margin-bottom:20px">CONFIGURATION DU MOTEUR</div>
-    ${win("Moteur · hors-ligne déterministe", tog("vad", "Silero VAD", "Gating voix (mode micro)") + tog("diarize", "Diarisation", "Séparer les locuteurs") + tog("autolock", "Verrou automatique", "Verrouiller à la corrélation") + tog("redact", "Masquer PII", "Caviarder les identifiants"))}</div>`;
+    ${win("Moteur", tog("vad", "Silero VAD", "Gating voix (mode micro)") + tog("diarize", "Diarisation", "Séparer les locuteurs") + tog("autolock", "Verrou automatique", "Verrouiller à la corrélation") + tog("redact", "Masquer PII", "Caviarder les identifiants"))}</div>`;
     }
 
     /* ---- terminal (two-column) ---- */
@@ -679,7 +707,7 @@
       const out = S.termLines.map(l => `<div style="color:${l.c || "var(--fit-text-dim)"};white-space:pre-wrap">${esc(l.t)}</div>`).join("");
       const guide = CMDS.map(c => `<div style="margin-bottom:6px"><span style="color:var(--fit-green)">${esc(c.cmd)}</span> <span style="color:var(--fit-text-muted)">— ${esc(c.desc)}</span></div>`).join("");
       return `<div style="position:fixed;left:0;right:0;bottom:0;height:280px;z-index:90;background:#07090a;border-top:1px solid var(--fit-green-dim);display:flex;flex-direction:column">
-    <div style="display:flex;justify-content:space-between;padding:7px 14px;border-bottom:1px solid var(--fit-border);font-size:11px;letter-spacing:.1em;color:var(--fit-sage)"><span>TERMINAL DE COMMANDES — déterministe · hors-ligne</span><button onclick="fitini.toggleTerm()" style="background:none;border:1px solid var(--fit-border);color:var(--fit-text-muted);padding:3px 8px;font-size:10px">▼ FERMER</button></div>
+    <div style="display:flex;justify-content:space-between;padding:7px 14px;border-bottom:1px solid var(--fit-border);font-size:11px;letter-spacing:.1em;color:var(--fit-sage)"><span>TERMINAL DE COMMANDES</span><button onclick="fitini.toggleTerm()" style="background:none;border:1px solid var(--fit-border);color:var(--fit-text-muted);padding:3px 8px;font-size:10px">▼ FERMER</button></div>
     <div style="flex:1;display:grid;grid-template-columns:1fr 280px;min-height:0">
       <div id="term-out" style="overflow:auto;padding:10px 14px;font-size:13px;line-height:1.5">${out}</div>
       <div style="border-left:1px solid var(--fit-border);padding:10px 14px;overflow:auto;font-size:12px"><div style="font-size:10px;letter-spacing:.18em;color:var(--fit-text-faint);margin-bottom:10px">COMMANDES</div>${guide}</div>
@@ -853,15 +881,35 @@
       setQuery: (v) => { S.query = v; if (S.screen === "archive") render(); },
       setDossierNew: (v) => { S.dossierNew = v; },
       createDossier: async () => { const n = (S.dossierNew || "").trim(); if (!n) return; try { await api("/api/dossiers", { method: "POST", json: { name: n } }); S.dossierNew = ""; await loadDossiers(); } catch (e) { } },
-      openDossier: async (id) => { S.searchQ = ""; S.searchResults = []; S.searchChecked = new Set(); S.searchError = null; S.searchBusy = false; S.dossierAnalysis = null; S.exportError = null; try { const d = await api("/api/dossier/" + id); S.dossierId = id; S.dossierData = d; render(); } catch (e) { } },
-      closeDossier: () => { S.dossierId = null; S.dossierData = null; S.searchResults = []; S.searchChecked = new Set(); S.searchQ = ""; S.dossierAnalysis = null; S.exportError = null; render(); loadDossiers(); },
+      openDossier: async (id) => { S.searchQ = ""; S.searchResults = []; S.searchChecked = new Set(); S.searchError = null; S.searchBusy = false; S.dossierAnalysis = null; S.exportError = null; S.juxFilter = "all"; S.dossierUploadMsg = ""; try { const d = await api("/api/dossier/" + id); S.dossierId = id; S.dossierData = d; render(); } catch (e) { } },
+      closeDossier: () => { S.dossierId = null; S.dossierData = null; S.searchResults = []; S.searchChecked = new Set(); S.searchQ = ""; S.dossierAnalysis = null; S.exportError = null; S.juxFilter = "all"; S.dossierUploadMsg = ""; render(); loadDossiers(); },
       winMin: (k) => { const key = decodeURIComponent(k); if (S.winMin.has(key)) S.winMin.delete(key); else S.winMin.add(key); render(); },
       winMax: (k) => { const key = decodeURIComponent(k); S.winMax = (S.winMax === key ? null : key); render(); },
       winClose: (k) => { const key = decodeURIComponent(k); S.winClosed.add(key); render(); },
       setSearchQ: (v) => { S.searchQ = v; },
       dossierSearch: async () => { if (!S.dossierData) return; S.searchBusy = true; S.searchError = null; S.searchResults = []; S.searchChecked = new Set(); render(); try { const r = await api("/api/search?subject=" + encodeURIComponent(S.dossierData.name) + "&query=" + encodeURIComponent(S.searchQ || "")); S.searchResults = r.candidates || []; S.searchError = r.error || null; } catch (e) { S.searchError = "Recherche indisponible."; } S.searchBusy = false; render(); },
       toggleCheck: (id) => { if (S.searchChecked.has(id)) S.searchChecked.delete(id); else S.searchChecked.add(id); render(); },
-      analyzeDossier: async () => { if (!S.dossierId) return; S.dossierAnalysis = { busy: true }; render(); try { const r = await api("/api/dossier/" + S.dossierId + "/analyze", { method: "POST" }); S.dossierAnalysis = r; } catch (e) { S.dossierAnalysis = { error: "Analyse impossible." }; } render(); },
+      analyzeDossier: async () => { if (!S.dossierId) return; S.juxFilter = "all"; S.dossierAnalysis = { busy: true }; render(); try { const r = await api("/api/dossier/" + S.dossierId + "/analyze", { method: "POST" }); S.dossierAnalysis = r; } catch (e) { S.dossierAnalysis = { error: "Analyse impossible." }; } render(); },
+      setJuxFilter: (o) => { S.juxFilter = o; render(); },
+      uploadToDossier: async (files) => {
+        if (!S.dossierId || !files || !files.length) return;
+        let ok = 0, fail = 0;
+        for (const f of files) {
+          S.dossierUploadMsg = "Ajout de " + f.name + "…"; render();
+          const fd = new FormData(); fd.append("file", f);
+          const send = () => fetch("/api/dossier/" + S.dossierId + "/upload", { method: "POST", headers: S.token ? { "Authorization": "Bearer " + S.token } : {}, body: fd });
+          try {
+            let r = await send();
+            if (r.status === 401) { try { await relogin(); r = await send(); } catch (e) { } }
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok || j.error) { fail++; S.dossierUploadMsg = "Échec sur " + f.name + " : " + (j.error || ("HTTP " + r.status)); render(); }
+            else { ok++; if (j.dossier) S.dossierData = j.dossier; render(); }
+          } catch (e) { fail++; }
+        }
+        S.dossierUploadMsg = ok + " fichier(s) ajouté(s)" + (fail ? (", " + fail + " échec(s)") : "") + ". Classe l'orientation, puis ANALYSER.";
+        render();
+      },
+      setOrientation: async (sid, o) => { if (!S.dossierId) return; try { const r = await api("/api/dossier/" + S.dossierId + "/source/" + sid + "/orientation", { method: "POST", json: { orientation: o } }); if (r && r.id) S.dossierData = r; } catch (e) { } if (S.dossierAnalysis && !S.dossierAnalysis.busy) { fitini.analyzeDossier(); } else { render(); } },
       exportDossier: async (fmt) => {
         if (!S.dossierId) return;
         S.exportError = null; render();

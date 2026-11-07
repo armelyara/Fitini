@@ -105,6 +105,13 @@ class CollectBody(BaseModel):
     candidates: List[Dict[str, Any]]
 
 
+class OrientationBody(BaseModel):
+    orientation: str
+
+
+ORIENTATIONS = {"media", "pro-gov", "pro-opp", "intl-ngo", "source", "unknown"}
+
+
 # ------------------------------- routes ------------------------------------ #
 @app.get("/")
 async def serve_ui():
@@ -212,6 +219,61 @@ async def dossier_analyze_ep(dossier_id: str, selectors: Optional[str] = Query(N
     if not d:
         raise HTTPException(status_code=404, detail="Dossier not found")
     return dossier_analyze.analyze(d, selectors or "")
+
+
+@app.post("/api/dossier/{dossier_id}/source/{source_id}/orientation")
+async def set_source_orientation_ep(dossier_id: str, source_id: str, body: OrientationBody,
+                                    _: str = Depends(require_auth)):
+    """Tag a source's orientation (media / pro-gov / pro-opp / intl-ngo / source)."""
+    o = body.orientation if body.orientation in ORIENTATIONS else "unknown"
+    meta = dossiers.set_source_orientation(dossier_id, source_id, o)
+    if meta is None:
+        raise HTTPException(status_code=404, detail="Source not found")
+    return meta
+
+
+@app.post("/api/dossier/{dossier_id}/upload")
+async def dossier_upload(dossier_id: str, file: UploadFile = File(...),
+                        _: str = Depends(require_auth)):
+    """Add the operator's own file to a dossier: extract/transcribe -> stored source."""
+    if not dossiers.get_dossier(dossier_id):
+        raise HTTPException(status_code=404, detail="Dossier not found")
+    suffix = os.path.splitext(file.filename or "")[1] or ".txt"
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    error = None
+    src = None
+    try:
+        tmp.write(await file.read())
+        tmp.close()
+        try:
+            if doc_ingest.is_text_like(tmp.name):
+                text = doc_ingest.extract_text(tmp.name)
+            else:
+                transcriber = AudioStreamTranscriber(CONFIG, use_microphone=False)
+                parts = []
+                async for item in transcriber.transcribe_file(tmp.name):
+                    parts.append(item["text"])
+                text = "\n".join(parts)
+            sid = "src-" + hashlib.sha1(((file.filename or "") + str(time.time())).encode("utf-8")).hexdigest()[:10]
+            src = {
+                "id": sid, "title": file.filename or sid, "url": "",
+                "published_date": "", "platform": "fichier local",
+                "orientation": "unknown", "raw_text": text,
+                "content_hash": hashlib.sha256((text or "").encode("utf-8")).hexdigest()[:16],
+                "captured_at": time.time(), "status": "saved",
+            }
+            dossiers.save_source_file(dossier_id, sid, text)
+        except Exception as exc:
+            error = str(exc)
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+    if error:
+        return JSONResponse({"error": error}, status_code=400)
+    meta = dossiers.add_sources(dossier_id, [src])
+    return {"dossier": meta, "source": src}
 
 
 @app.get("/api/dossier/{dossier_id}/export")
