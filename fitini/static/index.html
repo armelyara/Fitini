@@ -578,15 +578,14 @@
     <div style="margin-bottom:20px">${win("Rapport de synthèse (déterministe)", `<div style="padding:12px 16px">
       <div style="display:flex;gap:8px;margin-bottom:10px"><button class="actbtn" onclick="fitini.copyBrief()">⧉ Copier</button><button class="actbtn" onclick="fitini.downloadBrief()">⭳ Télécharger .txt</button></div>
       <pre style="white-space:pre-wrap;font-size:12px;line-height:1.55;color:var(--fit-text-dim);margin:0;max-height:360px;overflow:auto">${esc(buildBrief())}</pre></div>`)}</div>
-    <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:20px;align-items:start">
-      ${win("Corpus · Transcription", `<div style="padding:14px 16px;max-height:560px;overflow:auto;display:flex;flex-direction:column;gap:11px">${wsLines}</div>`)}
-      <div style="display:flex;flex-direction:column;gap:18px;min-width:0">
-        ${S.results.length ? win("Résultats d'actions", `<div style="padding:12px;display:flex;flex-direction:column;gap:10px">${results}</div>`) : ""}
-        ${win("Hypothèses", `<div style="padding:12px;display:flex;flex-direction:column;gap:12px">${hyp}</div>`)}
-        ${win("Graphe de relations", `<div style="padding:12px">${graphSvg()}</div>`)}
-        ${win("Chronologie des faits", `<div style="padding:6px 14px 10px">${tl}</div>`)}
-        ${win("Flags · anomalies", `<div style="padding:12px;display:flex;flex-direction:column;gap:10px">${flags}</div>`)}
-      </div></div></div>`;
+    <div style="margin-bottom:18px">${win("Corpus · Transcription", `<div style="padding:14px 16px;max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:11px">${wsLines}</div>`)}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px;align-items:start">
+      ${S.results.length ? win("Résultats d'actions", `<div style="padding:12px;display:flex;flex-direction:column;gap:10px">${results}</div>`) : ""}
+      ${win("Hypothèses", `<div style="padding:12px;display:flex;flex-direction:column;gap:12px">${hyp}</div>`)}
+      ${win("Graphe de relations", `<div style="padding:12px">${graphSvg()}</div>`)}
+      ${win("Chronologie des faits", `<div style="padding:6px 14px 10px">${tl}</div>`)}
+      ${win("Flags · anomalies", `<div style="padding:12px;display:flex;flex-direction:column;gap:10px">${flags}</div>`)}
+    </div></div>`;
     }
     function graphSvg() {
       const nodes = S.summary.entities.slice(0, 24); if (!nodes.length) return `<div style="color:var(--fit-text-faint);font-size:12px">—</div>`;
@@ -609,7 +608,7 @@
       if (S.dossierId && S.dossierData) return viewDossierDetail(S.dossierData);
       const rows = (S.dossiers || []).map(d => `<div onclick="fitini.openDossier('${d.id}')" style="display:grid;grid-template-columns:140px 1fr 80px 110px;padding:12px 18px;border-bottom:1px solid var(--fit-grid-line);font-size:12px;align-items:center;cursor:pointer"><span style="color:var(--fit-sage)">${esc(d.id)}</span><span style="color:var(--fit-green);font-weight:700">${esc(d.name)}</span><span style="color:var(--fit-text-muted)">${d.count} src</span><span style="color:var(--fit-text-muted)">${esc(fmtDate(d.created_at))}</span></div>`).join("")
         || `<div style="padding:16px;color:var(--fit-text-faint);font-size:12px">Aucun dossier. Créez-en un pour commencer une enquête.</div>`;
-      return `<div style="padding:26px 34px"><div style="font-size:22px;letter-spacing:.1em;margin-bottom:18px">DOSSIERS D'ENQUÊTE</div>
+      return `<div style="padding:26px 34px;max-width:960px;margin:0 auto"><div style="font-size:22px;letter-spacing:.1em;margin-bottom:18px">DOSSIERS D'ENQUÊTE</div>
     <div class="win" style="max-width:720px;margin-bottom:18px"><div style="padding:16px;display:flex;gap:10px;align-items:center">
       <input id="dossier-new" value="${esc(S.dossierNew)}" oninput="fitini.setDossierNew(this.value)" onkeydown="if(event.key==='Enter')fitini.createDossier()" placeholder="Nom du dossier (sujet de l'enquête)…" style="flex:1;background:var(--fit-surface-3);border:1px solid var(--fit-border);color:var(--fit-green);font-size:12px;padding:9px 12px;outline:none"/>
       <button class="actbtn" onclick="fitini.createDossier()">+ NOUVEAU</button></div></div>
@@ -654,16 +653,16 @@
       const rows = S.archive.filter(a => !S.query || ((a.subject || "") + (a.id || "")).toLowerCase().includes(S.query.toLowerCase()))
         .map(a => `<div style="display:grid;grid-template-columns:110px 1fr 120px 110px 90px;padding:12px 18px;border-bottom:1px solid var(--fit-grid-line);font-size:12px;align-items:center"><span style="color:var(--fit-sage)">${esc(a.id)}</span><span style="color:var(--fit-green);font-weight:700">${esc(a.subject)}</span><span style="color:var(--fit-text-muted)">${esc(a.channel || "")}</span><span style="color:var(--fit-text-muted)">${esc(a.date || "")}</span><span style="color:${a.statusColor || "var(--fit-text-muted)"};font-size:10px">● ${esc(a.status || "")}</span></div>`).join("")
         || `<div style="padding:16px;color:var(--fit-text-faint);font-size:12px">Aucun dossier archivé.</div>`;
-      return `<div style="padding:26px 34px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px;flex-wrap:wrap"><div style="font-size:22px;letter-spacing:.1em">ARCHIVE DES DOSSIERS</div><input value="${esc(S.query)}" oninput="fitini.setQuery(this.value)" placeholder="RECHERCHER…" style="background:var(--fit-surface-3);border:1px solid var(--fit-border);color:var(--fit-green);font-size:12px;padding:8px 12px;outline:none;width:200px"/></div>
+      return `<div style="padding:26px 34px;max-width:1000px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px;flex-wrap:wrap"><div style="font-size:22px;letter-spacing:.1em">ARCHIVE DES DOSSIERS</div><input value="${esc(S.query)}" oninput="fitini.setQuery(this.value)" placeholder="RECHERCHER…" style="background:var(--fit-surface-3);border:1px solid var(--fit-border);color:var(--fit-green);font-size:12px;padding:8px 12px;outline:none;width:200px"/></div>
     <div class="win"><div style="display:grid;grid-template-columns:110px 1fr 120px 110px 90px;padding:11px 18px;font-size:10px;letter-spacing:.14em;color:var(--fit-text-faint);border-bottom:1px solid var(--fit-border);background:var(--fit-titlebar)"><span>ID</span><span>SUJET</span><span>CANAL</span><span>DATE</span><span>STATUT</span></div>${rows}</div></div>`;
     }
     function viewAnalyze() {
-      return `<div style="padding:22px 28px"><div style="font-size:11px;letter-spacing:.2em;color:var(--fit-sage);margin-bottom:16px">INGESTION — ENREGISTREMENT / NOTE VOCALE · HORS-LIGNE</div>
-  <div class="win" style="max-width:640px"><div style="padding:30px;text-align:center"><div style="font-size:34px;color:var(--fit-sage);margin-bottom:12px">⤒</div>
+      return `<div style="padding:22px 28px;max-width:720px;margin:0 auto"><div style="font-size:11px;letter-spacing:.2em;color:var(--fit-sage);margin-bottom:16px">INGESTION — ENREGISTREMENT / NOTE VOCALE · HORS-LIGNE</div>
+  <div class="win"><div style="padding:30px;text-align:center"><div style="font-size:34px;color:var(--fit-sage);margin-bottom:12px">⤒</div>
     <div style="font-size:14px;margin-bottom:6px">Déposer un enregistrement, une note vocale ou un texte</div>
     <div style="font-size:11px;color:var(--fit-text-muted);margin-bottom:16px">PDF · DOCX · TXT · WAV · MP3 · M4A · OGG — extrait/transcrit puis analysé, hors-ligne</div>
     <input type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.txt,.md,.csv,.pdf,.docx" onchange="fitini.upload(this.files[0])" style="color:var(--fit-text-muted);font-size:12px"/>
-    <div id="analyze-status" style="margin-top:16px;font-size:12px;color:var(--fit-text-muted)"></div></div></div></div>`;
+    <div id="analyze-status" style="margin-top:16px;font-size:12px;color:var(--fit-text-muted)"></div></div></div><div style="font-size:11px;color:var(--fit-text-faint);margin-top:14px;line-height:1.7;text-align:center">Le fichier est extrait/transcrit, analysé, puis le résultat apparaît dans <b style="color:var(--fit-sage)">REPORT</b>. Rien ne quitte ta machine.</div></div>`;
     }
     function viewConfig() {
       const tog = (k, label, hint) => {

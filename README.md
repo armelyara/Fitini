@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="fitini/static/fitini_logo.png" alt="Fitini" width="180">
+  <img src="https://raw.githubusercontent.com/armelyara/Fitini/main/fitini/static/fitini_logo.png" alt="Fitini" width="180">
 </p>
 
 <h1 align="center">Fitini — Les murs ont des oreilles</h1>
