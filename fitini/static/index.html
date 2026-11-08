@@ -893,7 +893,7 @@
       setJuxFilter: (o) => { S.juxFilter = o; render(); },
       uploadToDossier: async (files) => {
         if (!S.dossierId || !files || !files.length) return;
-        let ok = 0, fail = 0;
+        let ok = 0; const errs = [];
         for (const f of files) {
           S.dossierUploadMsg = "Ajout de " + f.name + "…"; render();
           const fd = new FormData(); fd.append("file", f);
@@ -902,11 +902,11 @@
             let r = await send();
             if (r.status === 401) { try { await relogin(); r = await send(); } catch (e) { } }
             const j = await r.json().catch(() => ({}));
-            if (!r.ok || j.error) { fail++; S.dossierUploadMsg = "Échec sur " + f.name + " : " + (j.error || ("HTTP " + r.status)); render(); }
+            if (!r.ok || j.error) { errs.push(f.name + " — " + (j.error || ("HTTP " + r.status))); }
             else { ok++; if (j.dossier) S.dossierData = j.dossier; render(); }
-          } catch (e) { fail++; }
+          } catch (e) { errs.push(f.name + " — " + e); }
         }
-        S.dossierUploadMsg = ok + " fichier(s) ajouté(s)" + (fail ? (", " + fail + " échec(s)") : "") + ". Classe l'orientation, puis ANALYSER.";
+        S.dossierUploadMsg = (ok ? (ok + " fichier(s) ajouté(s). Classe l'orientation, puis ANALYSER. ") : "") + (errs.length ? ("Échec : " + errs.join(" | ")) : "");
         render();
       },
       setOrientation: async (sid, o) => { if (!S.dossierId) return; try { const r = await api("/api/dossier/" + S.dossierId + "/source/" + sid + "/orientation", { method: "POST", json: { orientation: o } }); if (r && r.id) S.dossierData = r; } catch (e) { } if (S.dossierAnalysis && !S.dossierAnalysis.busy) { fitini.analyzeDossier(); } else { render(); } },
