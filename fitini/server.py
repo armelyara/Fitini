@@ -62,6 +62,15 @@ STATIC_DIR = os.path.join(PKG_DIR, "static")
 DATA_DIR = os.environ.get("FITINI_DATA", os.getcwd())  # runtime data: user's folder
 UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+MAX_UPLOAD_BYTES = int(os.environ.get("FITINI_MAX_UPLOAD_MB", "50")) * 1024 * 1024
+
+
+async def _read_capped(upload) -> bytes:
+    """Read an upload up to the size cap; raise ValueError if it exceeds it."""
+    data = await upload.read(MAX_UPLOAD_BYTES + 1)
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise ValueError("fichier trop volumineux (max %d Mo)" % (MAX_UPLOAD_BYTES // (1024 * 1024)))
+    return data
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as fh:
     CONFIG: Dict[str, Any] = json.load(fh)
@@ -242,12 +251,16 @@ async def dossier_upload(dossier_id: str, file: UploadFile = File(...),
     """Add the operator's own file to a dossier: extract/transcribe -> stored source."""
     if not dossiers.get_dossier(dossier_id):
         raise HTTPException(status_code=404, detail="Dossier not found")
+    try:
+        data = await _read_capped(file)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=413)
     suffix = os.path.splitext(file.filename or "")[1] or ".txt"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     error = None
     src = None
     try:
-        tmp.write(await file.read())
+        tmp.write(data)
         tmp.close()
         try:
             if doc_ingest.is_text_like(tmp.name):
@@ -505,8 +518,12 @@ async def upload(file: UploadFile = File(...), _: str = Depends(require_auth)):
     """Store an uploaded source (voice note / recording / transcript) for INTERCEPT."""
     ext = os.path.splitext(file.filename or "")[1].lower()
     name = uuid.uuid4().hex + ext
+    try:
+        data = await _read_capped(file)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=413)
     with open(os.path.join(UPLOAD_DIR, name), "wb") as out:
-        out.write(await file.read())
+        out.write(data)
     return {"source": name, "filename": file.filename}
 
 
@@ -518,6 +535,10 @@ async def analyze(file: UploadFile = File(...),
     engine = _engine_for(domains, subject)
     transcriber = AudioStreamTranscriber(CONFIG, use_microphone=False)
 
+    try:
+        data = await _read_capped(file)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=413)
     suffix = os.path.splitext(file.filename or "")[1] or ".wav"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     alerts: List[Dict[str, Any]] = []
@@ -525,7 +546,7 @@ async def analyze(file: UploadFile = File(...),
     error: Optional[str] = None
     note: Optional[str] = None
     try:
-        tmp.write(await file.read())
+        tmp.write(data)
         tmp.close()
         try:
             if doc_ingest.is_text_like(tmp.name):

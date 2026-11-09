@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 import time
 import uuid
@@ -25,12 +26,23 @@ DOSSIERS_DIR = os.environ.get("FITINI_DOSSIERS", os.path.join(BASE_DIR, "dossier
 _LOCK = threading.Lock()
 
 
+_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+
+
+def _safe_id(value: str) -> str:
+    """Reject ids that could escape the data directory (path traversal)."""
+    v = str(value or "")
+    if ".." in v or "/" in v or "\\" in v or not _ID_RE.match(v):
+        raise ValueError("invalid id: %r" % value)
+    return v
+
+
 def _ensure_root() -> None:
     os.makedirs(DOSSIERS_DIR, exist_ok=True)
 
 
 def _dossier_dir(dossier_id: str) -> str:
-    return os.path.join(DOSSIERS_DIR, dossier_id)
+    return os.path.join(DOSSIERS_DIR, _safe_id(dossier_id))
 
 
 def _meta_path(dossier_id: str) -> str:
@@ -38,7 +50,10 @@ def _meta_path(dossier_id: str) -> str:
 
 
 def _read_meta(dossier_id: str) -> Optional[Dict[str, Any]]:
-    path = _meta_path(dossier_id)
+    try:
+        path = _meta_path(dossier_id)
+    except ValueError:
+        return None
     if not os.path.isfile(path):
         return None
     with open(path, encoding="utf-8") as fh:
@@ -110,7 +125,7 @@ def save_source_file(dossier_id: str, source_id: str, text: str) -> str:
     """Persist a downloaded source's text next to the dossier metadata."""
     d = os.path.join(_dossier_dir(dossier_id), "sources")
     os.makedirs(d, exist_ok=True)
-    path = os.path.join(d, source_id + ".txt")
+    path = os.path.join(d, _safe_id(source_id) + ".txt")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(text or "")
     return path

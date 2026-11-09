@@ -20,6 +20,8 @@ import os
 import re
 import urllib.error
 import urllib.request
+import ipaddress
+import socket
 from typing import Any, Dict, List
 from urllib.parse import urlparse
 
@@ -114,8 +116,32 @@ def _strip_html(html: str) -> str:
     return re.sub(r"\n\s*\n+", "\n", text).strip()
 
 
+def _is_public_host(host: str) -> bool:
+    """Reject internal/private/loopback targets (basic SSRF guard)."""
+    if not host:
+        return False
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except Exception:
+        return False
+    for info in infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0])
+        except ValueError:
+            return False
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            return False
+    return True
+
+
 def fetch_text(url: str) -> str:
     """Download a page and return a rough text extraction (deterministic, no LLM)."""
+    p = urlparse(url or "")
+    if p.scheme not in ("http", "https"):
+        raise WebCollectError("URL non supportee (http/https uniquement).")
+    if not _is_public_host(p.hostname or ""):
+        raise WebCollectError("Hote interne/prive bloque.")
     req = urllib.request.Request(url, headers={"User-Agent": "Fitini/0.3"})
     with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
         raw = r.read().decode("utf-8", "ignore")
