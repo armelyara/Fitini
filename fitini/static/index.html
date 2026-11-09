@@ -322,7 +322,7 @@
     const NAV = [["intercept", "01 INTERCEPT"], ["analyze", "02 ANALYSE"], ["report", "03 REPORT"], ["dossier", "04 DOSSIER"], ["archive", "05 ARCHIVE"], ["config", "06 CONFIG"]];
 
     const S = {
-      screen: "intercept", token: localStorage.getItem("fitini_tok") || null, opId: "OPÉRATEUR", clock: "--:--:-- UTC",
+      screen: "intercept", token: localStorage.getItem("fitini_tok") || null, opId: "OPÉRATEUR", needLogin: false, loginErr: "", clock: "--:--:-- UTC",
       domain: "justice", domainsOpen: false, subject: "", interceptSource: "", micMode: false,
       started: false, done: false, streaming: false,
       lines: [], frames: [], detectedOrder: [], rows: emptyRows(), cellOf: {}, hotCanon: null,
@@ -352,7 +352,7 @@
       const h = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
       if (S.token) h["Authorization"] = "Bearer " + S.token;
       const r = await fetch(path, Object.assign({}, opts, { headers: h, body: opts.json ? JSON.stringify(opts.json) : opts.body }));
-      if (r.status === 401 && !_retried && path !== "/api/login") { await relogin(); return api(path, opts, true); }
+      if (r.status === 401 && !_retried && path !== "/api/login") { try { await relogin(); } catch (e) { S.needLogin = true; render(); throw e; } return api(path, opts, true); }
       if (!r.ok) throw new Error("HTTP " + r.status);
       const ct = r.headers.get("content-type") || ""; return ct.includes("json") ? r.json() : r.text();
     }
@@ -370,7 +370,19 @@
       const cls = "win" + (S.winMin.has(key) ? " collapsed" : "") + (S.winMax === key ? " maximized" : "");
       return `<div class="${cls}" ${extra || ""}><div class="hd"><span>${esc(title)}</span><span class="wc"><b onclick="fitini.winMin('${k}')" title="Réduire">–</b><b onclick="fitini.winMax('${k}')" title="Agrandir">□</b><b onclick="fitini.winClose('${k}')" title="Fermer">×</b></span></div><div class="rule"></div>${body}</div>`;
     }
+    function loginScreen() {
+      return `<div style="height:100%;display:flex;align-items:center;justify-content:center;padding:20px">
+    <div class="win" style="width:340px;max-width:90vw"><div class="hd"><span>FITINI — ACCÈS</span><span class="wc"></span></div><div class="rule"></div>
+      <div style="padding:22px 20px;display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:11px;color:var(--fit-text-faint);letter-spacing:.1em">Les murs ont des oreilles.</div>
+        <input id="login-op" value="${esc(S.opId || "ANALYSTE")}" placeholder="Opérateur" style="background:var(--fit-surface-3);border:1px solid var(--fit-border-strong);color:var(--fit-green);font-size:12px;padding:9px 11px;outline:none"/>
+        <input id="login-pass" type="password" placeholder="Phrase secrète" onkeydown="if(event.key==='Enter')fitini.doLogin()" style="background:var(--fit-surface-3);border:1px solid var(--fit-border-strong);color:var(--fit-green);font-size:12px;padding:9px 11px;outline:none"/>
+        ${S.loginErr ? `<div style="color:#e5534b;font-size:11px">${esc(S.loginErr)}</div>` : ""}
+        <button class="primary" onclick="fitini.doLogin()">ENTRER</button>
+      </div></div></div>`;
+    }
     function render() {
+      if (S.needLogin) { $("app").innerHTML = loginScreen(); const i = $("login-pass"); if (i) setTimeout(() => i.focus(), 30); return; }
       $("app").innerHTML = shell(content());
       if (S.screen === "intercept") { interceptMount(); }
       if (S.termOpen) setTimeout(() => { const i = $("term-in"); if (i) i.focus(); }, 30);
@@ -858,6 +870,16 @@
 
     /* handlers */
     window.fitini = {
+      doLogin: async () => {
+        const op = (($("login-op") || {}).value) || "ANALYSTE";
+        const pass = (($("login-pass") || {}).value) || "";
+        try {
+          const r = await api("/api/login", { method: "POST", json: { operator_id: op, passphrase: pass } });
+          S.token = r.token; try { localStorage.setItem("fitini_tok", S.token); } catch (e) { }
+          S.needLogin = false; S.loginErr = ""; S.opId = op;
+          await bootAfterAuth();
+        } catch (e) { S.loginErr = "Identifiants refusés."; render(); }
+      },
       go: (k) => { S.screen = k; S.domainsOpen = false; S.winMin.clear(); S.winMax = null; S.winClosed.clear(); if (k === "dossier") { S.dossierId = null; S.dossierData = null; } render(); if (k === "archive") loadArchive(); if (k === "dossier") loadDossiers(); },
       lock: () => { if (ws) { try { ws.close(); } catch (e) { } } S.screen = "intercept"; S.domainsOpen = false; resetFlux(); render(); },
       toggleDomains: () => { S.domainsOpen = !S.domainsOpen; render(); },
@@ -949,11 +971,20 @@
     }
 
     /* boot */
-    async function boot() {
-      if (!S.token) { try { const r = await api("/api/login", { method: "POST", json: { operator_id: "ANALYSTE", passphrase: "fitini" } }); S.token = r.token; localStorage.setItem("fitini_tok", S.token); } catch (e) { } }
+    async function ensureSession() {
+      if (S.token) { try { await api("/api/me"); return true; } catch (e) { } }
+      try { await relogin(); return true; } catch (e) { return false; }
+    }
+    async function bootAfterAuth() {
+      S.needLogin = false;
       try { const me = await api("/api/me"); if (me && me.operator_id) S.opId = me.operator_id; } catch (e) { }
       try { const d = await api("/api/domains"); if (d && d.domains && d.domains.length) DOMAINS = d.domains; } catch (e) { }
       render();
+    }
+    async function boot() {
+      const ok = await ensureSession();
+      if (!ok) { S.needLogin = true; render(); return; }
+      await bootAfterAuth();
     }
     boot();
   </script>

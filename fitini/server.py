@@ -68,6 +68,10 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as fh:
 
 db.init_db(CONFIG)
 auth_manager = AuthManager(CONFIG)
+if auth_manager.using_default_credentials:
+    logging.getLogger("fitini").warning(
+        "Fitini runs with DEFAULT credentials. Set FITINI_PASSPHRASE before "
+        "exposing it beyond localhost.")
 
 app = FastAPI(title="Fitini")
 if os.path.isdir(STATIC_DIR):

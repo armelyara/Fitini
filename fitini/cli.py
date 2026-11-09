@@ -16,6 +16,10 @@ import sys
 
 def _cmd_serve(args):
     import uvicorn
+    if args.host not in ("127.0.0.1", "localhost", ""):
+        print("WARNING: host %s exposes Fitini beyond this machine. Set "
+              "FITINI_PASSPHRASE and put it behind a reverse proxy / TLS." % args.host,
+              file=sys.stderr)
     if args.open:
         import threading
         import webbrowser
