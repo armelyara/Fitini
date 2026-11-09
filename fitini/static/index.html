@@ -322,7 +322,7 @@
     const NAV = [["intercept", "01 INTERCEPT"], ["analyze", "02 ANALYSE"], ["report", "03 REPORT"], ["dossier", "04 DOSSIER"], ["archive", "05 ARCHIVE"], ["config", "06 CONFIG"]];
 
     const S = {
-      screen: "intercept", token: localStorage.getItem("fitini_tok") || null, opId: "OPÉRATEUR", needLogin: false, loginErr: "", clock: "--:--:-- UTC",
+      screen: "intercept", token: localStorage.getItem("fitini_tok") || null, opId: "ANALYSTE", needLogin: false, loginErr: "", clock: "--:--:-- UTC",
       domain: "justice", domainsOpen: false, subject: "", interceptSource: "", micMode: false,
       started: false, done: false, streaming: false,
       lines: [], frames: [], detectedOrder: [], rows: emptyRows(), cellOf: {}, hotCanon: null,
