@@ -715,7 +715,7 @@
     ${win("Moteur", tog("vad", "Silero VAD", "Gating voix (mode micro)") + tog("diarize", "Diarisation", "Séparer les locuteurs") + tog("autolock", "Verrou automatique", "Verrouiller à la corrélation") + tog("redact", "Masquer PII", "Caviarder les identifiants"))}</div>`;
     }
 
-    /* ---- terminal (two-column) ---- */
+    /* terminal */
     function terminalPanel() {
       const out = S.termLines.map(l => `<div style="color:${l.c || "var(--fit-text-dim)"};white-space:pre-wrap">${esc(l.t)}</div>`).join("");
       const guide = CMDS.map(c => `<div style="margin-bottom:6px"><span style="color:var(--fit-green)">${esc(c.cmd)}</span> <span style="color:var(--fit-text-muted)">— ${esc(c.desc)}</span></div>`).join("");
