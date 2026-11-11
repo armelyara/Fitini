@@ -750,7 +750,7 @@
     }
     function showAlert(a) { S.alert = a; const m = $("modal-root"); if (m) m.innerHTML = alertModal(a); }
 
-    /* ================= FLUX / WS ================= */
+    /*FLUX / WS */
     function startFlux() {
       resetFlux(); S.micError = null; S.started = true; S.streaming = true; renderFluxCta(); renderAnalyzer();
       const proto = location.protocol === "https:" ? "wss:" : "ws:";
